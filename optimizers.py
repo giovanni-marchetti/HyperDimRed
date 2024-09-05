@@ -4,6 +4,8 @@ class EmbedOptim():
     #An abstract class for optimizers for embedding methods
 
     def __init__(self, embedder, lr):
+        #embedder: Embedder , lr: Float
+        
         self.embedder = embedder
         self.lr = lr
     
@@ -15,9 +17,7 @@ class EmbedOptim():
 
 
 class StandardOptim(EmbedOptim):
-    def step(self):
-        with torch.no_grad():
-            self.embedder.embeddings -= self.lr * self.embedder.embeddings.grad
+    def step(self):embeddings -= self.lr * self.embedder.embeddings.grad
 
     
 class PoincareOptim(EmbedOptim):

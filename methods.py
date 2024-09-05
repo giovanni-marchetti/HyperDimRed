@@ -2,7 +2,7 @@ import torch
 from torch.linalg import vector_norm
 from distances import * 
 
-
+EPS = 0.00001
 
 class Embedder():
     #An abstract class for embedding methods. 
@@ -14,16 +14,15 @@ class Embedder():
 
     def normalize(self):
         with torch.no_grad():
-            norms = vector_norm(self.embeddings, dim=-1).unsqueeze(-1)
-            self.embeddings  = torch.where(norms < 1, self.embeddings , self.embeddings /(norms + 0.1))
+            norms = vector_norm(self.embeddings, dim=-1).unsqueeze(-1)  
+            self.embeddings  = torch.where(norms < 1, self.embeddings , self.embeddings / (norms + EPS))
             self.embeddings.requires_grad = True
             self.embeddings.retain_grad()
-    
+            
     def loss_fun(self):
         pass
 
-   
- 
+
 class MDS(Embedder):
     def loss_fun(self, data_dist_matrix):
         latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun)
