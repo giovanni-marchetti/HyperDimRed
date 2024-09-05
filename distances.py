@@ -1,4 +1,5 @@
 import torch
+from torch.linalg import vector_norm
     
 
 def dist_matrix(data, dist_fun):
@@ -7,17 +8,22 @@ def dist_matrix(data, dist_fun):
 
     return dist_fun(data.unsqueeze(0), data.unsqueeze(1))
 
+
 def Euclidean(x, y):
     # x, y : (..., D)
 
-    return ((x - y)**2).sum(-1)
+    # return ((x - y)**2).sum(-1)
+    return vector_norm(x-y, dim=-1)
 
-def Poincare(x, y):
+
+def Poincare(x, y): 
     # x, y : (..., D)
 
     euc_dist = ((x - y)**2).sum(-1)
     norm_x = (x**2).sum(-1)
     norm_y = (y**2).sum(-1)
-    dist = torch.acosh(1 + 2 * euc_dist / (( 1 - norm_x )*( 1 - norm_y )))**2
+    x = 1 + 2 * torch.div(euc_dist, ( 1 - norm_x )*( 1 - norm_y ))
+    dist = torch.acosh(x)
+    print('dist', dist.max().item())
     return dist
 
