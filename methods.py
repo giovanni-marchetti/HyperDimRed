@@ -4,6 +4,8 @@ from distances import *
 
 EPS = 0.00001
 
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
 class Embedder():
     #An abstract class for embedding methods. 
     
@@ -11,6 +13,7 @@ class Embedder():
         if distr == 'gaussian':
             self.embeddings = torch.randn((data_size, latent_dim), requires_grad=True)
         self.latent_dist_fun = latent_dist_fun
+        self.data_size = data_size
 
     def normalize(self):
         with torch.no_grad():
@@ -27,6 +30,21 @@ class MDS(Embedder):
     def loss_fun(self, data_dist_matrix):
         latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun)
         return ((data_dist_matrix - latent_dist_matrix)**2).mean()
+
+    
+def isomap_kernel(D): #input should be a distance matrix D
+    N = D.shape[0] # number of points considered
+    I = torch.eye(N).to(device)
+    A = torch.ones(N,N).to(device)
+    return -0.5*torch.matmul(torch.matmul(I-(1/N)*A,torch.matmul(D,D)),(I-(1/N)*A))
+    
+class Isomap(Embedder):
+    def loss_fun(self, data_dist_matrix):
+        latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun)      
+        isomap_term = isomap_kernel(data_dist_matrix)-isomap_kernel(latent_dist_matrix)
+        ##loss = torch.norm(isomap_term, p='fro')/self.data_size
+        loss = torch.einsum("ij, ij ->", isomap_term, isomap_term)/self.data_size      
+        return loss
     
 # class Contrastive(Embedder):
 #     def __init__(self, data_size, latent_dim, latent_dist_fun, temperature=1.):
