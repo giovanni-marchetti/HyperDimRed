@@ -181,3 +181,13 @@ def average_embeddings(cid_list, df_embeddings):
             embedding_sum += df_embeddings.loc[df_embeddings['CID'] == cid, 'embeddings'].values[0]
             n_cid += 1
     return embedding_sum / n_cid
+
+
+def prepare_goodscentleffignwell_mols(base_dir):
+    goodscentleffignwell_input_file = base_dir+'mols_datasets/curated_GS_LF_merged_4983.csv' # or new downloaded file path
+    df_goodscentleffignwell=pd.read_csv(goodscentleffignwell_input_file)
+    df_goodscentleffignwell.index.names = ['CID']
+    df_goodscentleffignwell= df_goodscentleffignwell.reset_index()
+    df_goodscentleffignwell['y'] = df_goodscentleffignwell.loc[:,'alcoholic':'woody'].values.tolist()
+    return df_goodscentleffignwell
+
