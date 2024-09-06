@@ -1,14 +1,10 @@
-import torch 
-from torch.linalg import vector_norm
 from sklearn.neighbors import kneighbors_graph
 from scipy.sparse.csgraph import dijkstra
 from constants import *
-from distances import *
-from methods import * 
+from methods import *
 from optimizers import * 
-from visulization import *
+from utils.visulization import *
 from OdorDataset import OdorMonoDataset
-import numpy as np
 
 latent_dim = 2
 lr = 0.01
@@ -39,6 +35,7 @@ else:
     input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
     dataset = OdorMonoDataset(base_dir, input_embeddings, transform=None, grand_avg=True, descriptors=select_descriptors(dataset_name))
     data = dataset.embeddings
+
 data_dist_matrix = dist_matrix(data, Euclidean)
 
 #IsoMap-style geodesic distance for data
