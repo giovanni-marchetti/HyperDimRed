@@ -45,14 +45,17 @@ class Isomap(Embedder):
         ##loss = torch.norm(isomap_term, p='fro')/self.data_size
         loss = torch.einsum("ij, ij ->", isomap_term, isomap_term)/self.data_size      
         return loss
-    
-# class Contrastive(Embedder):
-#     def __init__(self, data_size, latent_dim, latent_dist_fun, temperature=1.):
-#         super(self).__init__(data_size, latent_dim) 
-#         self.temperature = temperature 
 
-#     def loss_fun(self, data_dist_mask):
-#         latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun) * data_dist_mask
+class Contrastive(Embedder):
+    def loss_fun(self, data_binary_dist_matrix, temperature=1.):
+        latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun)
+        
+        positive_pairs = data_binary_dist_matrix == 1
+        pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
+        
+        negative_pairs = data_binary_dist_matrix == 0
+        neg_loss = torch.logsumexp(-latent_dist_matrix[positive_pairs]/temperature, dim=0)
 
-#         positive = 
-#         negative = 
+        loss = pos_loss + neg_loss
+        
+        return loss
