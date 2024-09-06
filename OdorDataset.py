@@ -5,22 +5,19 @@ from sklearn.metrics.pairwise import euclidean_distances
 
 from utils.helpers import *
 class OdorMonoDataset(Dataset):
-    def __init__(self, base_dir, embeddings_perception_csv, transform=None, grand_avg=False, avg_per_subject=False, descriptors=None):
-        self.base_dir = base_dir
-        self.ds = pd.read_csv(base_dir + embeddings_perception_csv)
-        self.ds = prepare_dataset(self.ds)
-        if grand_avg:
-            self.ds = grand_average(self.ds, descriptors)
-        elif avg_per_subject:
-            self.ds = average_per_subject(self.ds, descriptors)
+    def __init__(self, base_dir, embeddings_perception_csv=None, transform=None, grand_avg=False, descriptors=None):
+        if embeddings_perception_csv is None:
+            self.embeddings = torch.randn(10, 10)
         else:
-            pass
-        self.labels = self.ds['y']
-        self.embeddings = self.ds['embeddings']
-        self.embeddings =torch.from_numpy(np.array(self.embeddings.tolist()))
+            self.base_dir = base_dir
+            self.ds = pd.read_csv(base_dir + embeddings_perception_csv)
+            self.ds = prepare_dataset(self.ds)
 
-
-
+            if grand_avg:
+                self.ds = grand_average(self.ds, descriptors)
+            # self.labels = self.ds['y']
+            self.embeddings = self.ds['embeddings']
+            self.embeddings =torch.from_numpy(np.array(self.embeddings.tolist()))
         self.transform = transform
 
     def __len__(self):
@@ -28,29 +25,25 @@ class OdorMonoDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.embeddings[idx]
-        label = self.labels[idx]
-
         if self.transform:
             sample = self.transform(sample)
 
-        return sample, label
+        return idx, sample
 
 
 
 
 
 class OdorMixDataset(Dataset):
-    def __init__(self,base_dir, perception_csv, embeddings_csv, transform=None, grand_average=False, average_per_subject=False, descriptors=None):
+    def __init__(self,base_dir, perception_csv, embeddings_csv, transform=None, grand_avg=False, descriptors=None):
         df_mols, df_mols_embeddings, df_mols_embeddings_zscored = prepare_similarity_mols_mix_on_representations(base_dir, perception_csv,
                                                        embeddings_csv,
                                                        mixing_type='average', sep=';',
                                                        start='0', end='255')
 
         self.base_dir = base_dir
-        if grand_average:
+        if grand_avg:
             self.ds = self.grand_average(self.ds, descriptors)
-        elif average_per_subject:
-            self.ds = self.average_per_subject(self.ds, descriptors)
         else:
             pass
         self.labels = self.ds['y']
