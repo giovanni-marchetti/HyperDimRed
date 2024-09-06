@@ -20,7 +20,7 @@ def scatterplot_2d(embeddings, labels, title, color_map='viridis'):
 
 
 
-def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3,reduction_method = 'PCA',perplexity=None):
+def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3,reduction_method = None,perplexity=None):
     sns.set_style("ticks")
     sns.despine()
 
