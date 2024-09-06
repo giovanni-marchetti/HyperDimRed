@@ -32,11 +32,11 @@ class MDS(Embedder):
         return ((data_dist_matrix - latent_dist_matrix)**2).mean()
 
     
-def isomap_kernel(D): #input should be a distance matrix D
-    N = D.shape[0] # number of points considered
+def isomap_kernel(data_dist_matrix): #input should be a distance matrix D
+    N = data_dist_matrix.shape[0] # number of points considered
     I = torch.eye(N).to(device)
     A = torch.ones(N,N).to(device)
-    return -0.5*torch.matmul(torch.matmul(I-(1/N)*A,torch.matmul(D,D)),(I-(1/N)*A))
+    return -0.5*torch.matmul(torch.matmul(I - (1/N) * A, torch.matmul(data_dist_matrix, data_dist_matrix)), (I - (1 / N) * A))
     
 class Isomap(Embedder):
     def loss_fun(self, data_dist_matrix, idx):
@@ -47,14 +47,14 @@ class Isomap(Embedder):
         return loss
 
 class Contrastive(Embedder):
-    def loss_fun(self, data_binary_dist_matrix, temperature=1.):
-        latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun)
+    def loss_fun(self, data_binary_dist_matrix,idx, temperature=1.):
+        latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
         
-        positive_pairs = data_binary_dist_matrix == 1
+        positive_pairs = data_binary_dist_matrix[idx,idx] == 1
         pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
         
-        negative_pairs = data_binary_dist_matrix == 0
-        neg_loss = torch.logsumexp(-latent_dist_matrix[positive_pairs]/temperature, dim=0)
+        negative_pairs = data_binary_dist_matrix[idx,idx] == 0
+        neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
 
         loss = pos_loss + neg_loss
         
