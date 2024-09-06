@@ -41,7 +41,7 @@ def select_descriptors(dataset_name):
 base_dir = '../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/'
 input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
 
-dataset = OdorMonoDataset(base_dir, input_embeddings, transform=None, grand_avg=False, descriptors=select_descriptors(dataset_name))
+dataset = OdorMonoDataset(base_dir, None, transform=None, grand_avg=False, descriptors=select_descriptors(dataset_name))
 data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True,drop_last=True)
 
 
@@ -61,6 +61,10 @@ def geo_distance(data):
     data_dist_matrix = torch.where(data_dist_matrix == torch.inf, 1000 * torch.ones_like(data_dist_matrix),data_dist_matrix)
     return data_dist_matrix
 
+def nn_g(data):
+    data_nn_matrix = kneighbors_graph(data, 3, mode='distance', include_self=False)
+    data_nn_matrix = data_nn_matrix.toarray()
+    return data_nn_matrix
 
 #IsoMap-style geodesic distance for data
 
@@ -75,22 +79,30 @@ def geo_distance(data):
 
 #model = MDS(data.shape[0], latent_dim, Poincare)
 # print(len(dataset))
-model = Isomap(len(dataset), latent_dim, Euclidean)
+# model = Isomap(len(dataset), latent_dim, Euclidean)
+# model = Contrastive(len(dataset), latent_dim, Euclidean)
+
+
+model = Contrastive(len(dataset), latent_dim, Poincare)
 
 #optimizer = StandardOptim(model, lr=lr)
-optimizer = StandardOptim(model, lr=lr)
+optimizer = PoincareOptim(model, lr=lr)
 
 if __name__ == "__main__":
     for i in range(num_epochs):
         total_loss=0
-        if normalize:
-            model.normalize()
-        for idx, batch in data_loader:
 
-            if geodesic:
-                data_dist_matrix = geo_distance(batch)
-            else:
-                data_dist_matrix = dist_matrix(batch, Euclidean)
+        for idx, batch in data_loader:
+            if normalize:
+                model.normalize()
+            # if geodesic:
+            #     data_dist_matrix = geo_distance(batch)
+            # else:
+            #     data_dist_matrix = dist_matrix(batch, Euclidean)
+            data_nn_matrix = nn_g(batch)
+
+            #binary matrix
+            data_dist_matrix = (data_nn_matrix > 0).astype(int)
 
             optimizer.zero_grad()
             loss = model.loss_fun(data_dist_matrix,idx)

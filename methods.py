@@ -49,13 +49,17 @@ class Isomap(Embedder):
 class Contrastive(Embedder):
     def loss_fun(self, data_binary_dist_matrix,idx, temperature=1.):
         latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
+        print(data_binary_dist_matrix.shape,"shapeee")
         
         positive_pairs = data_binary_dist_matrix[idx,idx] == 1
+        print("pos1",positive_pairs.shape)
         pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
-        
-        negative_pairs = data_binary_dist_matrix[idx,idx] == 0
+        print("pos2",pos_loss.shape)
+        negative_pairs = data_binary_dist_matrix == 0
+        # negative_pairs = negative_pairs[idx,idx]
+        print("neg1",data_binary_dist_matrix[idx,idx])
         neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
-
+        print("neg2",neg_loss.shape)
         loss = pos_loss + neg_loss
         
         return loss

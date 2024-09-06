@@ -25,11 +25,11 @@ class StandardOptim(EmbedOptim):
 
 
 class PoincareOptim(EmbedOptim):
-    def step(self):
+    def step(self,idx):
         with torch.no_grad():
             embeddings = self.embedder.embeddings
             norms = (embeddings**2).sum(-1).unsqueeze(-1)
-            embeddings -= self.lr * (1 - norms)**2 * embeddings.grad / 4
+            embeddings[idx] -= self.lr * (1 - norms[idx])**2 * embeddings.grad[idx] / 4
 
 
 
