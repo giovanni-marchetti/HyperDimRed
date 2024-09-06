@@ -1,5 +1,7 @@
 #create a custom pytorch dataset for the odor dataset
 from torch.utils.data import Dataset
+from sklearn.metrics.pairwise import euclidean_distances
+
 
 from utils.helpers import *
 class OdorMonoDataset(Dataset):
@@ -14,14 +16,18 @@ class OdorMonoDataset(Dataset):
         else:
             pass
         self.labels = self.ds['y']
-        self.data = self.ds['embeddings']
+        self.embeddings = self.ds['embeddings']
+        self.embeddings =torch.from_numpy(np.array(self.embeddings.tolist()))
+
+
+
         self.transform = transform
 
     def __len__(self):
-        return len(self.data)
+        return len(self.embeddings)
 
     def __getitem__(self, idx):
-        sample = self.data[idx]
+        sample = self.embeddings[idx]
         label = self.labels[idx]
 
         if self.transform:
