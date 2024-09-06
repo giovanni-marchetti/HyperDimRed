@@ -1,21 +1,43 @@
 import torch 
 from torch.linalg import vector_norm
 from scipy.sparse.csgraph import dijkstra
-
+from constants import *
 from distances import *
 from methods import * 
 from optimizers import * 
-
+from visulization import *
+from OdorDataset import OdorMonoDataset
+import numpy as np
 
 latent_dim = 2
-lr = 0.1
-num_epochs = 100
-normalize = True
+lr = 0.001
+num_epochs = 1000
+normalize = False
 
 geodesic = False
 min_dist = 1.
 
-data = torch.randn(10, 10)
+dataset_name='sagar'
+model_name = 'molformer'
+
+
+def select_descriptors(dataset_name):
+    if dataset_name=='sagar':
+        return sagar_descriptors
+    elif dataset_name=='keller':
+        return keller_descriptors
+    else:
+        return None
+
+
+if dataset_name == 'random':
+    data = torch.randn(10, 10)
+
+else:
+    base_dir = '../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/'
+    input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
+    dataset = OdorMonoDataset(base_dir, input_embeddings, transform=None, grand_avg=True, descriptors=select_descriptors(dataset_name))
+    data = dataset.embeddings
 data_dist_matrix = dist_matrix(data, Euclidean)
 
 #IsoMap-style geodesic distance for data
@@ -34,8 +56,8 @@ if geodesic:
     
 
 
-model = MDS(data.shape[0], latent_dim, Poincare)
-optimizer = PoincareOptim(model, lr=lr)
+model = MDS(data.shape[0], latent_dim, Euclidean)
+optimizer = StandardOptim(model, lr=lr)
 
 if __name__ == "__main__":
     for i in range(num_epochs):
@@ -53,4 +75,8 @@ if __name__ == "__main__":
 
         if i % 10 == 0:
             print(f'Epoch {i}, loss: {loss:.3f}')
+
+    scatterplot_2d(model.embeddings.detach().cpu().numpy(), labels=None, title='Poincare Embeddings')
+
+
 
