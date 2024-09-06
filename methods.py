@@ -27,8 +27,8 @@ class Embedder():
 
 
 class MDS(Embedder):
-    def loss_fun(self, data_dist_matrix):
-        latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun)
+    def loss_fun(self, data_dist_matrix,idx):
+        latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
         return ((data_dist_matrix - latent_dist_matrix)**2).mean()
 
     
@@ -39,8 +39,8 @@ def isomap_kernel(D): #input should be a distance matrix D
     return -0.5*torch.matmul(torch.matmul(I-(1/N)*A,torch.matmul(D,D)),(I-(1/N)*A))
     
 class Isomap(Embedder):
-    def loss_fun(self, data_dist_matrix):
-        latent_dist_matrix = dist_matrix(self.embeddings, self.latent_dist_fun)      
+    def loss_fun(self, data_dist_matrix, idx):
+        latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
         isomap_term = isomap_kernel(data_dist_matrix)-isomap_kernel(latent_dist_matrix)
         ##loss = torch.norm(isomap_term, p='fro')/self.data_size
         loss = torch.einsum("ij, ij ->", isomap_term, isomap_term)/self.data_size      
