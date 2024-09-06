@@ -17,7 +17,10 @@ class EmbedOptim():
 
 
 class StandardOptim(EmbedOptim):
-    def step(self):embeddings -= self.lr * self.embedder.embeddings.grad
+    def step(self):
+        with torch.no_grad():   
+            embeddings = self.embedder.embeddings   
+            embeddings -= self.lr * self.embedder.embeddings.grad
 
     
 class PoincareOptim(EmbedOptim):

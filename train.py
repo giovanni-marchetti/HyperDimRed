@@ -1,5 +1,6 @@
 import torch 
 from torch.linalg import vector_norm
+from sklearn.neighbors import kneighbors_graph
 from scipy.sparse.csgraph import dijkstra
 
 from distances import *
@@ -8,11 +9,11 @@ from optimizers import *
 
 
 latent_dim = 2
-lr = 0.1
-num_epochs = 100
+lr = 0.01
+num_epochs = 100000
 normalize = True
 
-geodesic = False
+geodesic = True
 min_dist = 1.
 
 data = torch.randn(10, 10)
@@ -20,11 +21,18 @@ data_dist_matrix = dist_matrix(data, Euclidean)
 
 #IsoMap-style geodesic distance for data
 if geodesic:
-    truncated_matrix = torch.where(data_dist_matrix < min_dist, data_dist_matrix, torch.inf)
-    data_dist_matrix = dijkstra(truncated_matrix.detach().cpu().numpy())
+#     truncated_matrix = torch.where(data_dist_matrix < min_dist, data_dist_matrix, torch.inf)
+#     data_dist_matrix = dijkstra(truncated_matrix.detach().cpu().numpy())
+#     data_dist_matrix = torch.FloatTensor(data_dist_matrix)
+#     data_dist_matrix = torch.where(data_dist_matrix == torch.inf, 1000 * torch.ones_like(data_dist_matrix), data_dist_matrix)
+    
+    data_nn_matrix = kneighbors_graph(data, 3, mode='distance', include_self=False)
+    data_nn_matrix = data_nn_matrix.toarray()
+    data_dist_matrix = dijkstra(data_nn_matrix)
     data_dist_matrix = torch.FloatTensor(data_dist_matrix)
     data_dist_matrix = torch.where(data_dist_matrix == torch.inf, 1000 * torch.ones_like(data_dist_matrix), data_dist_matrix)
-
+       
+    
 
 # torch.manual_seed(42)       
 # torch.cuda.empty_cache()
@@ -34,7 +42,10 @@ if geodesic:
     
 
 
-model = MDS(data.shape[0], latent_dim, Poincare)
+#model = MDS(data.shape[0], latent_dim, Poincare)
+model = Isomap(data.shape[0], latent_dim, Poincare)
+
+#optimizer = StandardOptim(model, lr=lr)
 optimizer = PoincareOptim(model, lr=lr)
 
 if __name__ == "__main__":
@@ -53,4 +64,3 @@ if __name__ == "__main__":
 
         if i % 10 == 0:
             print(f'Epoch {i}, loss: {loss:.3f}')
-
