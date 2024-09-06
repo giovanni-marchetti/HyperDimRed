@@ -9,7 +9,8 @@ def dist_matrix(data, dist_fun):
     #data: (B, D)
 
     preliminary =  dist_fun(data.unsqueeze(0), data.unsqueeze(1))
-    return preliminary + torch.eye(data.shape[0])
+    result = preliminary + torch.eye(data.shape[0])
+    return result.float()
 
 
 def Euclidean(x, y):
