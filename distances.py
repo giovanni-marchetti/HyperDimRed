@@ -1,5 +1,6 @@
 import torch
 from torch.linalg import vector_norm
+import numpy as np
     
 EPS = 0.00001
 
@@ -31,7 +32,8 @@ def Poincare(x, y):
     # print('dist', dist.mean().item())
     return dist
 
-
+def hamming_distance(x, y):
+    return (x.astype(np.int32) ^ y.astype(np.int32)).sum()
 
 
 # if __name__ == '__main__':
