@@ -5,7 +5,7 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import ast
 import numpy as np
-
+from constants import *
 def prepare_dataset(ds):
     ds['y'] = ds['y'].apply(ast.literal_eval)
     ds['embeddings'] = ds['embeddings'].apply(ast.literal_eval)
@@ -190,4 +190,12 @@ def prepare_goodscentleffignwell_mols(base_dir):
     df_goodscentleffignwell= df_goodscentleffignwell.reset_index()
     df_goodscentleffignwell['y'] = df_goodscentleffignwell.loc[:,'alcoholic':'woody'].values.tolist()
     return df_goodscentleffignwell
+
+def select_descriptors(dataset_name):
+    if dataset_name=='sagar':
+        return sagar_descriptors
+    elif dataset_name=='keller':
+        return keller_descriptors
+    else:
+        return None
 
