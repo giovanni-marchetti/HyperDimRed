@@ -1,5 +1,4 @@
-from sklearn.neighbors import kneighbors_graph
-from scipy.sparse.csgraph import dijkstra
+
 from torch.utils.data import DataLoader
 import random
 from constants import *
@@ -14,6 +13,7 @@ num_epochs = 100000
 normalize = False
 geodesic = False
 min_dist = 1.
+distance_method = None
 
 
 
@@ -58,13 +58,7 @@ def set_seeds(seed):
     # torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
-def select_descriptors(dataset_name):
-    if dataset_name=='sagar':
-        return sagar_descriptors
-    elif dataset_name=='keller':
-        return keller_descriptors
-    else:
-        return None
+
 
 
 # set_seeds(2025)
@@ -78,23 +72,9 @@ data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True,drop_last=
     # del dataset
 
 
-def geo_distance(data):
-    #     truncated_matrix = torch.where(data_dist_matrix < min_dist, data_dist_matrix, torch.inf)
-    #     data_dist_matrix = dijkstra(truncated_matrix.detach().cpu().numpy())
-    #     data_dist_matrix = torch.FloatTensor(data_dist_matrix)
-    #     data_dist_matrix = torch.where(data_dist_matrix == torch.inf, 1000 * torch.ones_like(data_dist_matrix), data_dist_matrix)
 
-    data_nn_matrix = kneighbors_graph(data, 3, mode='distance', include_self=False)
-    data_nn_matrix = data_nn_matrix.toarray()
-    data_dist_matrix = dijkstra(data_nn_matrix)
-    data_dist_matrix = torch.FloatTensor(data_dist_matrix)
-    data_dist_matrix = torch.where(data_dist_matrix == torch.inf, 1000 * torch.ones_like(data_dist_matrix),data_dist_matrix)
-    return data_dist_matrix
 
-def nn_g(data):
-    data_nn_matrix = kneighbors_graph(data, 3, mode='distance', include_self=False)
-    data_nn_matrix = data_nn_matrix.toarray()
-    return data_nn_matrix
+
 
 #IsoMap-style geodesic distance for data
 
@@ -125,14 +105,22 @@ if __name__ == "__main__":
         for idx, batch in data_loader:
             if normalize:
                 model.normalize()
+
+            if distance_method == 'graph':
+                data_nn_matrix = graph_distance(batch)
+                data_dist_matrix = (data_nn_matrix > 0).astype(int)
+            elif distance_method == 'geo':
+                data_dist_matrix = geo_distance(batch)
+            else:
+                data_dist_matrix = dist_matrix(batch, Euclidean)
             # if geodesic:
             #     data_dist_matrix = geo_distance(batch)
             # else:
             #     data_dist_matrix = dist_matrix(batch, Euclidean)
-            data_nn_matrix = nn_g(batch)
+
 
             #binary matrix
-            data_dist_matrix = (data_nn_matrix > 0).astype(int)
+
 
             optimizer.zero_grad()
             loss = model.loss_fun(data_dist_matrix,idx)
@@ -152,14 +140,14 @@ if __name__ == "__main__":
 
 
 
-    size1 = (0.3, 0.28)
-    size2 = (0.6, 1)
-    size3 = (1, 0.35)
-
-    plt.rcParams["font.size"] = 35
-    df_gslf_mols = prepare_goodscentleffignwell_mols(base_dir)
-    pom_frame(np.asarray(model.embeddings.detach().cpu().numpy().values.tolist()),
-              np.asarray(df_gslf_mols.y.values.tolist()), "/kaggle/working/", gs_lf_tasks, "molformer", size1, size2,
-              size3)
+    # size1 = (0.3, 0.28)
+    # size2 = (0.6, 1)
+    # size3 = (1, 0.35)
+    #
+    # plt.rcParams["font.size"] = 35
+    # df_gslf_mols = prepare_goodscentleffignwell_mols(base_dir)
+    # pom_frame(np.asarray(model.embeddings.detach().cpu().numpy().values.tolist()),
+    #           np.asarray(df_gslf_mols.y.values.tolist()), "/kaggle/working/", gs_lf_tasks, "molformer", size1, size2,
+    #           size3)
 
 
