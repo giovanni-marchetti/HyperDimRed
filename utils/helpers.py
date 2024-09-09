@@ -199,3 +199,14 @@ def select_descriptors(dataset_name):
     else:
         return None
 
+def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg):
+
+    ds = pd.read_csv(base_dir + embeddings_perception_csv)
+    ds = prepare_dataset(ds)
+    if grand_avg:
+        ds = grand_average(ds, descriptors)
+    # self.labels = self.ds['y']
+    embeddings = ds['embeddings']
+    embeddings = torch.from_numpy(np.array(embeddings.tolist()))
+    return embeddings
+

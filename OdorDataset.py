@@ -5,20 +5,12 @@ from sklearn.metrics.pairwise import euclidean_distances
 
 from utils.helpers import *
 class OdorMonoDataset(Dataset):
-    def __init__(self, base_dir, embeddings_perception_csv=None, transform=None, grand_avg=False, descriptors=None):
-        if embeddings_perception_csv is None:
-            self.embeddings = torch.randn(10, 10)
-        else:
-            self.base_dir = base_dir
-            self.ds = pd.read_csv(base_dir + embeddings_perception_csv)
-            self.ds = prepare_dataset(self.ds)
+    def __init__(self, embeddings, transform=None):
 
-            if grand_avg:
-                self.ds = grand_average(self.ds, descriptors)
-            # self.labels = self.ds['y']
-            self.embeddings = self.ds['embeddings']
-            self.embeddings =torch.from_numpy(np.array(self.embeddings.tolist()))
         self.transform = transform
+        self.embeddings = embeddings
+
+
 
     def __len__(self):
         return len(self.embeddings)
