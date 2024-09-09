@@ -22,7 +22,7 @@ if __name__ == "__main__":
     # add arguments
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--model_name', type=str, default='molformer')
-    parser.add_argument('--batch_size', type=int, default=10)
+    parser.add_argument('--batch_size', type=int, default=20)
     parser.add_argument('--num_epochs', type=int, default=1000)
     parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         depth = 11
         embeddings = get_tree_data(depth)
     elif dataset_name == 'random':
-        embeddings  = torch.randn(10, 10)
+        embeddings  = torch.randn(100, 100)
     else:
         input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
         embeddings = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True)
