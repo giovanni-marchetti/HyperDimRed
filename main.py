@@ -22,8 +22,8 @@ if __name__ == "__main__":
     # add arguments
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--model_name', type=str, default='molformer')
-    parser.add_argument('--batch_size', type=int, default=20)
-    parser.add_argument('--num_epochs', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=5)
+    parser.add_argument('--num_epochs', type=int, default=20)
     parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.01)
@@ -32,13 +32,13 @@ if __name__ == "__main__":
                         default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
 
     parser.add_argument('--dataset_name', type=str, default='random')
-    parser.add_argument('--normalize', type=bool, default=False)
+    parser.add_argument('--normalize', type=bool, default=True)
     parser.add_argument('--optimizer', type=str, default='standard', choices=['standard', 'poincare'])
     parser.add_argument('--model', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
-    parser.add_argument('--latent_dist_fun', type=str, default='euclidean', choices=['euclidean', 'poincare'])
+    parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
     parser.add_argument('--distance_method', type=str, default='graph', choices=['geo', 'graph'])
-    parser.add_argument('--n_samples', type=int, default=30)
-    parser.add_argument('--dim', type=int, default=10)
+    parser.add_argument('--n_samples', type=int, default=200)
+    parser.add_argument('--dim', type=int, default=768)
 
     args = parser.parse_args()
     dataset_name = args.dataset_name
@@ -64,8 +64,12 @@ if __name__ == "__main__":
 
 
     if dataset_name == 'tree':
-        depth = 11
+        depth = 8
         embeddings = get_tree_data(depth)
+        ## binary_tree is a dataset of binary sequences.
+        ## The root of the tree is the node 0: binary_tree[0]
+        ## groundtruth distance from node i to the root of the tree (i.e. shortest path distance from node i to the root): hamming_distance(binary_tree[0], binary_tree[i])
+        ## For visualizations, one can color a node by its groundtruth distance to the tree.
     elif dataset_name == 'random':
         embeddings  = torch.randn(n_samples, dim)
     else:
