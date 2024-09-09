@@ -37,6 +37,8 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='euclidean', choices=['euclidean', 'poincare'])
     parser.add_argument('--distance_method', type=str, default='graph', choices=['geo', 'graph'])
+    parser.add_argument('--n_samples', type=int, default=30)
+    parser.add_argument('--dim', type=int, default=10)
 
     args = parser.parse_args()
     dataset_name = args.dataset_name
@@ -54,6 +56,9 @@ if __name__ == "__main__":
     model = args.model
     latent_dist_fun = args.latent_dist_fun
     distance_method = args.distance_method
+    n_samples = args.n_samples
+    dim = args.dim
+
 
 
 
@@ -62,7 +67,7 @@ if __name__ == "__main__":
         depth = 11
         embeddings = get_tree_data(depth)
     elif dataset_name == 'random':
-        embeddings  = torch.randn(100, 100)
+        embeddings  = torch.randn(n_samples, dim)
     else:
         input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
         embeddings = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True)
