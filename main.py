@@ -23,10 +23,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--model_name', type=str, default='molformer')
     parser.add_argument('--batch_size', type=int, default=20)
-    parser.add_argument('--num_epochs', type=int, default=1000)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--seed', type=int, default=2025)
     parser.add_argument('--base_dir', type=str,
                         default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
@@ -93,10 +93,10 @@ if __name__ == "__main__":
     else:
         raise ValueError('Optimizer not recognized')
 
-
-
+    losses = []
     for i in range(num_epochs):
         total_loss=0
+
 
         for idx, batch in data_loader:
             if normalize:
@@ -123,14 +123,16 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step(idx)
             total_loss += loss.item()
+        print(f'Epoch {i}, loss: {total_loss / len(data_loader):.3f}')
+        losses.append(total_loss/len(data_loader))
 
 
 
             # print('norms', vector_norm(model.embeddings, dim=-1).mean().item(), vector_norm(model.embeddings, dim=-1).max().item())
 
 
-        if i % 10 == 0:
-            print(f'Epoch {i}, loss: {total_loss/len(data_loader):.3f}')
+        # if i % 10 == 0:
 
-    scatterplot_2d(model.embeddings.detach().cpu().numpy(), labels=None, title='Poincare Embeddings')
+
+    scatterplot_2d(losses, model.embeddings.detach().cpu().numpy(), labels=None, title='Poincare Embeddings',args=args)
 
