@@ -23,20 +23,11 @@ distance_method = None
 import numpy as np
 from distances import hamming_distance
 
-def hasone(node_index, dim_index):
-    bin_i, bin_j = np.binary_repr(node_index), np.binary_repr(dim_index)
-    length = len(bin_j)
-    return (bin_i[:length] == bin_j) * 1
 
-def get_data(depth, dtype=np.float32):
-    n = 2**depth - 1
-    x = np.fromfunction(lambda i, j: np.vectorize(hasone)(i + 1, j + 1),
-                        (n, n), dtype=np.int32).astype(dtype)
-    return x
 
 # #Load the binary tree data
 # depth = 11
-# binary_tree = get_data(depth) # creates a binary tree dataset consisting of (2**(depth)-1) vectors of dimension (2**(depth)-1)
+# binary_tree = get_binary_data(depth) # creates a binary tree dataset consisting of (2**(depth)-1) vectors of dimension (2**(depth)-1)
 
 
 ## binary_tree is a dataset of binary sequences.
