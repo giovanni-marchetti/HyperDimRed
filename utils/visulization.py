@@ -10,12 +10,14 @@ plt.rcParams["font.size"] = 15
 
 def scatterplot_2d(losses, embeddings, labels, title, color_map='viridis',args=None):
 
-    fig,ax = plt.subplots(2,1,figsize=(10,20),sharey=False)
+    fig,ax = plt.subplots(2,1,figsize=(10,22),sharey=False)
+
 
     ax[0].scatter(embeddings[:, 0], embeddings[:, 1], c=labels, cmap=color_map)
     ax[1].plot(np.arange(len(losses)), losses)
-    # print(losses)
-    plt.title(f'lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun}')
+
+    fig.subplots_adjust(hspace=0.3)
+    plt.title(f'lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n n of samples = {args.n_samples}, n of samplse = {args.n_samples}, dims = {args.dim}')
     plt.show()
 
 
