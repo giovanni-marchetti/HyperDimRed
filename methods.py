@@ -51,11 +51,12 @@ class Contrastive(Embedder):
         latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
 
         positive_pairs = data_binary_dist_matrix == 1
-        positive_pairs = torch.tensor(positive_pairs)      
+        # positive_pairs = torch.tensor(positive_pairs)
         pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
         
         negative_pairs = data_binary_dist_matrix == 0
-        negative_pairs = torch.tensor(negative_pairs)
+        # negative_pairs = torch.tensor(negative_pairs)
+        # print(negative_pairs.shape)
         neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
 
         loss = pos_loss + neg_loss

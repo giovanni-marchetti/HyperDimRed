@@ -22,8 +22,8 @@ if __name__ == "__main__":
     # add arguments
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--model_name', type=str, default='molformer')
-    parser.add_argument('--batch_size', type=int, default=5)
-    parser.add_argument('--num_epochs', type=int, default=20)
+    parser.add_argument('--batch_size', type=int, default=10)
+    parser.add_argument('--num_epochs', type=int, default=40)
     parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.01)
@@ -109,6 +109,7 @@ if __name__ == "__main__":
             if distance_method == 'graph':
                 data_nn_matrix = graph_distance(batch)
                 data_dist_matrix = (data_nn_matrix > 0).astype(int)
+                data_dist_matrix = torch.tensor(data_dist_matrix)
             elif distance_method == 'geo':
                 data_dist_matrix = geo_distance(batch)
             else:

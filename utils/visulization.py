@@ -17,7 +17,7 @@ def scatterplot_2d(losses, embeddings, labels, title, color_map='viridis',args=N
     ax[1].plot(np.arange(len(losses)), losses)
 
     fig.subplots_adjust(hspace=0.3)
-    plt.title(f'lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n n of samples = {args.n_samples}, n of samplse = {args.n_samples}, dims = {args.dim}')
+    plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n n of samples = {args.n_samples}, dims = {args.dim}')
     plt.show()
 
 
