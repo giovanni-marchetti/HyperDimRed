@@ -1,11 +1,14 @@
 import argparse
+
+import torch
+
 from OdorDataset import OdorMonoDataset
 from utils.helpers import *
 from methods import *
 from optimizers import *
 from torch.utils.data import DataLoader
 from utils.visulization import *
-
+import scipy
 def hasone(node_index, dim_index):
     bin_i, bin_j = np.binary_repr(node_index), np.binary_repr(dim_index)
     length = len(bin_j)
@@ -16,14 +19,15 @@ def get_tree_data(depth, dtype=np.float32):
     n = 2 ** depth - 1
     x = np.fromfunction(lambda i, j: np.vectorize(hasone)(i + 1, j + 1),
                         (n, n), dtype=np.int32).astype(dtype)
+    # print(x.shape)
     return x
 
 if __name__ == "__main__":
     # add arguments
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--model_name', type=str, default='molformer')
-    parser.add_argument('--batch_size', type=int, default=10)
-    parser.add_argument('--num_epochs', type=int, default=40)
+    parser.add_argument('--batch_size', type=int, default=4)
+    parser.add_argument('--num_epochs', type=int, default=100)
     parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.01)
@@ -31,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
 
-    parser.add_argument('--dataset_name', type=str, default='random')
+    parser.add_argument('--dataset_name', type=str, default='tree')
     parser.add_argument('--normalize', type=bool, default=True)
     parser.add_argument('--optimizer', type=str, default='standard', choices=['standard', 'poincare'])
     parser.add_argument('--model', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -64,7 +68,7 @@ if __name__ == "__main__":
 
 
     if dataset_name == 'tree':
-        depth = 8
+        depth = 10
         embeddings = get_tree_data(depth)
         ## binary_tree is a dataset of binary sequences.
         ## The root of the tree is the node 0: binary_tree[0]
@@ -107,9 +111,11 @@ if __name__ == "__main__":
                 model.normalize()
 
             if distance_method == 'graph':
-                data_nn_matrix = graph_distance(batch)
+                data_nn_matrix = nngraph_distance(batch,n_neighbors=3,metric='minkowski')
+                # print(data_nn_matrix)
                 data_dist_matrix = (data_nn_matrix > 0).astype(int)
                 data_dist_matrix = torch.tensor(data_dist_matrix)
+                # print(data_dist_matrix)
             elif distance_method == 'geo':
                 data_dist_matrix = geo_distance(batch)
             else:
@@ -130,14 +136,13 @@ if __name__ == "__main__":
             total_loss += loss.item()
         print(f'Epoch {i}, loss: {total_loss / len(data_loader):.3f}')
         losses.append(total_loss/len(data_loader))
-
-
-
             # print('norms', vector_norm(model.embeddings, dim=-1).mean().item(), vector_norm(model.embeddings, dim=-1).max().item())
-
-
         # if i % 10 == 0:
 
+    laten_embeddings_norm= torch.norm(model.embeddings, dim=-1).cpu().detach().numpy()
+    e=scipy.spatial.distance.cdist(data_loader.dataset.embeddings, data_loader.dataset.embeddings, metric='hamming')*data_loader.dataset.embeddings.shape[-1]
 
-    scatterplot_2d(losses, model.embeddings.detach().cpu().numpy(), labels=None, title='Poincare Embeddings',args=args)
+
+
+    scatterplot_2d(losses, model.embeddings.detach().cpu().numpy(), laten_embeddings_norm, args=args, data_dist_matrix=e)
 
