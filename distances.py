@@ -38,22 +38,18 @@ def hamming_distance(x, y):
     return (x.astype(np.int32) ^ y.astype(np.int32)).sum()
 
 
-def geo_distance(data):
-    #     truncated_matrix = torch.where(data_dist_matrix < min_dist, data_dist_matrix, torch.inf)
-    #     data_dist_matrix = dijkstra(truncated_matrix.detach().cpu().numpy())
-    #     data_dist_matrix = torch.FloatTensor(data_dist_matrix)
-    #     data_dist_matrix = torch.where(data_dist_matrix == torch.inf, 1000 * torch.ones_like(data_dist_matrix), data_dist_matrix)
-
-    data_nn_matrix = kneighbors_graph(data, 3, mode='distance', include_self=False)
+def geo_distance(data,n_neighbors=3):
+    data_nn_matrix = kneighbors_graph(data, n_neighbors, mode='distance', include_self=False)
     data_nn_matrix = data_nn_matrix.toarray()
     data_dist_matrix = dijkstra(data_nn_matrix)
     data_dist_matrix = torch.FloatTensor(data_dist_matrix)
     data_dist_matrix = torch.where(data_dist_matrix == torch.inf, 1000 * torch.ones_like(data_dist_matrix),data_dist_matrix)
     return data_dist_matrix
 
-def graph_distance(data):
-    data_nn_matrix = kneighbors_graph(data, 3, mode='distance', include_self=False)
+def nngraph_distance(data,n_neighbors=3,metric='minkowski'):
+    data_nn_matrix = kneighbors_graph(data, n_neighbors, mode='distance', include_self=False,metric=metric)
     data_nn_matrix = data_nn_matrix.toarray()
+
     return data_nn_matrix
 
 # if __name__ == '__main__':
