@@ -6,10 +6,16 @@ from scipy.stats import gaussian_kde
 from sklearn.decomposition import PCA
 from matplotlib.patches import Patch
 import numpy as np
+import scipy
+import torch
+import os
 plt.rcParams["font.size"] = 15
 
-def scatterplot_2d(losses, latent_embeddings, embeddings_norm, color_map='viridis', args=None, data_dist_matrix=None):
+def scatterplot_2d(losses, latent_embeddings,input_embeddings, color_map='viridis', args=None):
 
+    latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1).cpu().detach().numpy()
+    data_dist_matrix=scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming')*input_embeddings.shape[-1]
+    latent_embeddings = latent_embeddings.detach().cpu().numpy()
     fig,ax = plt.subplots(2,1,figsize=(10,22),sharey=False)
 
     # make n different colors
@@ -20,13 +26,45 @@ def scatterplot_2d(losses, latent_embeddings, embeddings_norm, color_map='viridi
             if data_dist_matrix[i,j] <= 1.01:
                 ax[0].plot([latent_embeddings[i,0], latent_embeddings[j,0]], [latent_embeddings[i,1], latent_embeddings[j,1]], color=colors[i], linewidth=0.5)
 
-    ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=embeddings_norm, cmap=color_map)
+    ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
     ax[1].plot(np.arange(len(losses)), losses)
+    ax[0].set_ylim(-1, 1)
+    ax[0].set_xlim(-1, 1)
 
     fig.subplots_adjust(hspace=0.3)
-    plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n n of samples = {args.n_samples}, dims = {args.dim}')
-    plt.show()
+    plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
 
+    #create a folder if it does not exist
+    if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+        os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/")
+    plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}.png")
+    plt.close()
+
+
+# def scatterplot_2d_wandb(losses, latent_embeddings,input_embeddings, color_map='viridis', args=None):
+#
+#     latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1).cpu().detach().numpy()
+#     data_dist_matrix=scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming')*input_embeddings.shape[-1]
+#     latent_embeddings = latent_embeddings.detach().cpu().numpy()
+#     fig,ax = plt.subplots(2,1,figsize=(10,22),sharey=False)
+#
+#     # make n different colors
+#     colors = sns.color_palette("hsv", data_dist_matrix.shape[0])
+#
+#     for i in range(data_dist_matrix.shape[0]):
+#         for j in range(i+1, data_dist_matrix.shape[1]):
+#             if data_dist_matrix[i,j] <= 1.01:
+#                 ax[0].plot([latent_embeddings[i,0], latent_embeddings[j,0]], [latent_embeddings[i,1], latent_embeddings[j,1]], color=colors[i], linewidth=0.5)
+#
+#     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
+#     ax[1].plot(np.arange(len(losses)), losses)
+#     ax[0].set_ylim(-1, 1)
+#     ax[0].set_xlim(-1, 1)
+#
+#     fig.subplots_adjust(hspace=0.3)
+#     plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n n of samples = {args.n_samples}, dims = {args.dim}')
+#     plt.savefig("figs/"+args.random_string+".svg")
+#
 
 
 
