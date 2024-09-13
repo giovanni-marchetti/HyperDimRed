@@ -6,6 +6,15 @@ import pandas as pd
 import ast
 import numpy as np
 from constants import *
+import random
+def set_seeds(seed):
+
+    torch.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
 def prepare_dataset(ds):
     ds['y'] = ds['y'].apply(ast.literal_eval)
     ds['embeddings'] = ds['embeddings'].apply(ast.literal_eval)
