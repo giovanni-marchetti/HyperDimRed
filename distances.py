@@ -3,7 +3,7 @@ from torch.linalg import vector_norm
 import numpy as np
 from sklearn.neighbors import kneighbors_graph
 from scipy.sparse.csgraph import dijkstra
-
+import scipy
 EPS = 0.00001
 
 
@@ -52,15 +52,10 @@ def nngraph_distance(data,n_neighbors=3,metric='minkowski'):
 
     return data_nn_matrix
 
-# if __name__ == '__main__':
-#     x = torch.randn( (10,), requires_grad=True)
-#     y = torch.randn( (10,), requires_grad=True )
-    
-#     xp = torch.div(x,  vector_norm(x))
+def hamming_distance_matrix(data):
+    data_nn_matrix = scipy.spatial.distance.cdist(data,data, metric='hamming')*data.shape[-1]
 
-#     yp = torch.div(y, vector_norm(y))
+    return data_nn_matrix
 
-#     dist = Poincare(xp, yp).mean()    
-#     dist.backward()
-#     print(x.grad)
+
 
