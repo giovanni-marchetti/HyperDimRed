@@ -37,7 +37,7 @@ def scatterplot_2d(losses, latent_embeddings,input_embeddings, color_map='viridi
     #create a folder if it does not exist
     if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/"):
         os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/")
-    plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}.png")
+    plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
     plt.close()
 
 
