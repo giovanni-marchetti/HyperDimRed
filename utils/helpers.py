@@ -205,6 +205,8 @@ def select_descriptors(dataset_name):
         return sagar_descriptors
     elif dataset_name=='keller':
         return keller_descriptors
+    elif dataset_name=='gslf':
+        return gs_lf_tasks
     else:
         return None
 
