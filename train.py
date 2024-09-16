@@ -86,27 +86,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     args.random_string = uuid.uuid4().hex
     set_seeds(seed)
-        # wandb.init(project='hyperbolic_smell',
-        #            config = {
-        #                  'model_name': model_name,
-        #                  'batch_size': batch_size,
-        #                  'num_epochs': num_epochs,
-        #                  'min_dist': min_dist,
-        #                  'latent_dim': latent_dim,
-        #                  'lr': lr,
-        #                  'seed': seed,
-        #                  'base_dir': base_dir,
-        #                  'dataset_name': dataset_name,
-        #                  'normalize': normalize,
-        #                  'optimizer': optimizer,
-        #                  'model': model,
-        #                  'latent_dist_fun': latent_dist_fun,
-        #                  'distance_method': distance_method,
-        #                  'n_samples': n_samples,
-        #                  'dim': dim,
-        #                  'depth': depth
-        #            }
-        #            )
+
 
     if dataset_name == 'tree':
         embeddings = get_tree_data(depth)
