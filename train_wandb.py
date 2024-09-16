@@ -32,15 +32,15 @@ sweep_configuration = {
 "model_name": {"values": ['molformer']},
 "latent_dim": {"values": [2]},
 "base_dir": {"values": ['../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/']},
-"dataset_name": {"values": ['tree']},
+"dataset_name": {"values": ['gslf']},
 "seed": {"values": [2025, 2026]},
-"num_epochs": {"values": [500,1000]},
-"depth": {"values": [5, 6,7,8,9,10]},
+"num_epochs": {"values": [100]},
+"depth": {"values": [1]},
 "lr": {"values": [0.1, 0.01, 0.001, 0.0001]},
 "temperature": {"values": [1,0.9,0.95,0.8,0.85]},
 "normalize": {"values": [True]},
-"optimizer": {"values": ['standard', 'poincare']},
-"model": {"values": [ 'contrastive', 'mds']},
+"optimizer": {"values": ['poincare','standard']},
+"model": {"values": [ 'contrastive']},
 "latent_dist_fun": {"values": ['poincare']},
 "distance_method": {"values": [ 'hamming']},
 # "random_string": {"values": [uuid.uuid4().hex]}
@@ -58,7 +58,7 @@ def main():
     with wandb.init(config=None):
         args = wandb.config
         # args.random_string = uuid.uuid4().hex
-        args.batch_size = 2 ** args.depth - 1
+        args.batch_size = 2048 if args.dataset_name == 'gslf' else 160
         args.random_string = wandb.run.id
         # parser = argparse.ArgumentParser('Hyperbolic Smell')
         # parser.add_argument('--model_name', type=str, default='molformer')
@@ -142,7 +142,7 @@ def main():
             embeddings  = torch.randn(n_samples, dim)
         else:
             input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
-            embeddings = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True)
+            embeddings = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True if dataset_name == 'keller' else False)
 
         dataset = OdorMonoDataset(embeddings, transform=None)
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -180,6 +180,8 @@ def main():
                     # print(data_nn_matrix)
                     data_dist_matrix = (data_nn_matrix > 0).astype(int)
                     data_dist_matrix = torch.tensor(data_dist_matrix)
+                # if dataset_name=='euclidean':
+                #     pass
                     # print(data_dist_matrix)
                 elif distance_method == 'geo':
                     data_dist_matrix = geo_distance(batch)
