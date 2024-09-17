@@ -27,7 +27,7 @@ class Embedder():
 
 
 class MDS(Embedder):
-    def loss_fun(self, data_dist_matrix,idx,temperature=None):
+    def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix=None, temperature=None):
         latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
         return ((data_dist_matrix - latent_dist_matrix)**2).mean()
 
@@ -39,7 +39,7 @@ def isomap_kernel(data_dist_matrix): #input should be a distance matrix D
     return -0.5*torch.matmul(torch.matmul(I - (1/N) * A, torch.matmul(data_dist_matrix, data_dist_matrix)), (I - (1 / N) * A))
     
 class Isomap(Embedder):
-    def loss_fun(self, data_dist_matrix, idx,temperature=None):
+    def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix=None, temperature=None):
         latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
         isomap_term = isomap_kernel(data_dist_matrix)-isomap_kernel(latent_dist_matrix)
         ##loss = torch.norm(isomap_term, p='fro')/self.data_size
@@ -47,17 +47,21 @@ class Isomap(Embedder):
         return loss
 
 class Contrastive(Embedder):
-    def loss_fun(self, data_binary_dist_matrix,idx, temperature=1.):
+    def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix, temperature=1.):
         latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
 
         positive_pairs = data_binary_dist_matrix == 1
         # positive_pairs = torch.tensor(positive_pairs)
-        pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
+        
+        #pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
+        pos_loss = ((latent_dist_matrix[positive_pairs]-data_dist_matrix[positive_pairs])**2).sum()/temperature # with metricity injected
         
         negative_pairs = data_binary_dist_matrix == 0
         # negative_pairs = torch.tensor(negative_pairs)
         # print(negative_pairs.shape)
-        neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
+        
+        #neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
+        neg_loss = torch.logsumexp(-(latent_dist_matrix[negative_pairs])**2/temperature, dim=0)
 
         loss = pos_loss + neg_loss
         

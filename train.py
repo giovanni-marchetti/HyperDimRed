@@ -26,6 +26,11 @@ def get_tree_data(depth, dtype=np.float32):
     return x
 
 
+### If using Jupyter Notebook:###
+# import sys
+# if 'ipykernel_launcher' in sys.argv[0]:
+#     sys.argv = sys.argv[:1]
+###
 
 
 if __name__ == "__main__":
@@ -38,12 +43,12 @@ if __name__ == "__main__":
     # args = wandb.config
     # args.random_string = uuid.uuid4().hex
 
-    # plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
+    # plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
-    parser.add_argument('--model_name', type=str, default='molformer')
+    parser.add_argument('--representation_name', type=str, default='molformer')
     parser.add_argument('--batch_size', type=int, default=2048)
-    parser.add_argument('--num_epochs', type=int, default=100)
+    parser.add_argument('--num_epochs', type=int, default=1000)
     parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.001)
@@ -51,10 +56,10 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
 
-    parser.add_argument('--dataset_name', type=str, default='gslf')
+    parser.add_argument('--dataset_name', type=str, default='tree')
     parser.add_argument('--normalize', type=bool, default=True)
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
-    parser.add_argument('--model', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
+    parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
     parser.add_argument('--distance_method', type=str, default='hamming', choices=['geo', 'graph', 'hamming'])
     parser.add_argument('--n_samples', type=int, default=200)
@@ -64,7 +69,7 @@ if __name__ == "__main__":
     # args = argparse.Namespace()
     args = parser.parse_args()
     dataset_name = args.dataset_name
-    model_name = args.model_name
+    representation_name = args.representation_name
     num_epochs = args.num_epochs
     normalize = args.normalize
     # geodesic = args.geodesic
@@ -74,7 +79,7 @@ if __name__ == "__main__":
     seed = args.seed
     base_dir = args.base_dir
     optimizer = args.optimizer
-    model = args.model
+    model_name = args.model_name
     latent_dist_fun = args.latent_dist_fun
     distance_method = args.distance_method
     # n_samples = args.n_samples
@@ -82,8 +87,10 @@ if __name__ == "__main__":
     depth = args.depth
     temperature = args.temperature
 
-    # args.batch_size = 2 ** args.depth - 1
+    ### Overwrite the batchsize ###
+    args.batch_size = 2 ** args.depth - 1 #to get full batch
     batch_size = args.batch_size
+    
     args.random_string = uuid.uuid4().hex
     set_seeds(seed)
 
@@ -97,17 +104,17 @@ if __name__ == "__main__":
     elif dataset_name == 'random':
         embeddings  = torch.randn(n_samples, dim)
     else:
-        input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
+        input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True if dataset_name == 'keller' else False)
     dataset = OdorMonoDataset(embeddings, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
         raise ValueError('Latent distance function not recognized')
-    if model == 'isomap':
+    if model_name == 'isomap':
         model = Isomap(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
-    elif model == 'mds':
+    elif model_name == 'mds':
         model = MDS(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
-    elif model == 'contrastive':
+    elif model_name == 'contrastive':
         model = Contrastive(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
     else:
         raise ValueError('Model not recognized')
@@ -134,8 +141,9 @@ if __name__ == "__main__":
                 data_dist_matrix = geo_distance(batch)
             elif distance_method == 'hamming':
                 data_dist_matrix = hamming_distance_matrix(batch)
-                if model != 'mds':
-                    data_dist_matrix = (data_dist_matrix <= 1.01).astype(int)
+                if model_name == 'contrastive':
+                    data_binary_dist_matrix = (data_dist_matrix <= 1.01).astype(int)
+                    data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
                 data_dist_matrix = torch.tensor(data_dist_matrix)
             else:
                 data_dist_matrix = dist_matrix(batch, Euclidean)
@@ -145,7 +153,7 @@ if __name__ == "__main__":
             #     data_dist_matrix = dist_matrix(batch, Euclidean)
             #binary matrix
             optimizer.zero_grad()
-            loss = model.loss_fun(data_dist_matrix,idx,temperature=temperature)
+            loss = model.loss_fun(data_dist_matrix,idx, data_binary_dist_matrix, temperature)
             loss.backward()
             optimizer.step(idx)
             total_loss += loss.item()

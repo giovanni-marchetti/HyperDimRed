@@ -26,7 +26,8 @@ def scatterplot_2d(losses, latent_embeddings,input_embeddings, color_map='viridi
             if data_dist_matrix[i,j] <= 1.01:
                 ax[0].plot([latent_embeddings[i,0], latent_embeddings[j,0]], [latent_embeddings[i,1], latent_embeddings[j,1]], color=colors[i], linewidth=0.5)
 
-    ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
+#     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
+    ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=data_dist_matrix[0,:], cmap=color_map)
     ax[1].plot(np.arange(len(losses)), losses)
     ax[0].set_ylim(-1, 1)
     ax[0].set_xlim(-1, 1)
