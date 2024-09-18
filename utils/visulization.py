@@ -29,8 +29,9 @@ def scatterplot_2d(losses, latent_embeddings,input_embeddings, color_map='viridi
 #     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=data_dist_matrix[0,:], cmap=color_map)
     ax[1].plot(np.arange(len(losses)), losses)
-    ax[0].set_ylim(-1, 1)
-    ax[0].set_xlim(-1, 1)
+    if args.normalize == True:
+        ax[0].set_ylim(-1.2, 1.2)
+        ax[0].set_xlim(-1.2, 1.2)
 
     fig.subplots_adjust(hspace=0.3)
     plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
