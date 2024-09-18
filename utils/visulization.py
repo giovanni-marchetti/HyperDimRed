@@ -35,8 +35,8 @@ def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args
     ax[2].plot(np.arange(len(losses_neg)), losses_neg,label='negative')
 
     if args.normalize == True:
-    	ax[0].set_ylim(-1.09, 1.09)
-    	ax[0].set_xlim(-1.09, 1.09)
+        ax[0].set_ylim(-1.09, 1.09)
+        ax[0].set_xlim(-1.09, 1.09)
 
 
     fig.subplots_adjust(hspace=0.3)
@@ -44,11 +44,14 @@ def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args
     ax[1].legend()
     ax[2].legend()
     plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
-
+    
     #create a folder if it does not exist
     if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
         os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
     plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
+    
+    plt.show()
+    
     plt.close()
 
 
