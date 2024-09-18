@@ -105,7 +105,7 @@ if __name__ == "__main__":
         embeddings  = torch.randn(n_samples, dim)
     else:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
-        embeddings = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True if dataset_name == 'keller' else False)
+        embeddings,labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True if dataset_name == 'keller' else False)
     dataset = OdorMonoDataset(embeddings, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':

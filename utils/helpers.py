@@ -217,7 +217,9 @@ def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg)
     if grand_avg:
         ds = grand_average(ds, descriptors)
     # self.labels = self.ds['y']
+    labels = ds['y']
     embeddings = ds['embeddings']
     embeddings = torch.from_numpy(np.array(embeddings.tolist()))
-    return embeddings
+    labels = torch.from_numpy(np.array(labels.tolist()))
+    return embeddings,labels
 
