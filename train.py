@@ -167,6 +167,6 @@ if __name__ == "__main__":
         # laten_embeddings_norm= torch.norm(model.embeddings, dim=-1).cpu().detach().numpy()
         # e=scipy.spatial.distance.cdist(data_loader.dataset.embeddings, data_loader.dataset.embeddings, metric='hamming')*data_loader.dataset.embeddings.shape[-1]
         # scatterplot_2d(losses, model.embeddings.detach().cpu().numpy(), laten_embeddings_norm, args=args, data_dist_matrix=e)
-    scatterplot_2d( model.embeddings,dataset.embeddings, args=args,losses=losses,losses_neg=model.losses_neg,losses_pos=model.losses_pos)
+    scatterplot_2d( model.embeddings,dataset.embeddings, args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
 
 #
