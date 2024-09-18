@@ -28,12 +28,16 @@ def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args
 
 #     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=data_dist_matrix[0,:], cmap=color_map)
+
     ax[1].plot(np.arange(len(losses)), losses,label='total')
 
     ax[1].plot(np.arange(len(losses_pos)), losses_pos,label='positive')
     ax[2].plot(np.arange(len(losses_neg)), losses_neg,label='negative')
-    ax[0].set_ylim(-1.09, 1.09)
-    ax[0].set_xlim(-1.09, 1.09)
+
+    if args.normalize == True:
+    	ax[0].set_ylim(-1.09, 1.09)
+    	ax[0].set_xlim(-1.09, 1.09)
+
 
     fig.subplots_adjust(hspace=0.3)
     #showing the legend
