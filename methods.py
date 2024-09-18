@@ -47,6 +47,11 @@ class Isomap(Embedder):
         return loss
 
 class Contrastive(Embedder):
+    def __init__(self, data_size, latent_dim, latent_dist_fun=Euclidean, distr='gaussian'):
+        super().__init__(data_size, latent_dim, latent_dist_fun, distr)
+        self.losses_pos = []
+        self.losses_neg = []
+
     def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix, temperature=1.):
         latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
 
@@ -62,7 +67,8 @@ class Contrastive(Embedder):
         
         #neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
         neg_loss = torch.logsumexp(-(latent_dist_matrix[negative_pairs])**2/temperature, dim=0)
-
+        self.losses_pos.append(pos_loss.item())
+        self.losses_neg.append(neg_loss.item())
         loss = pos_loss + neg_loss
         
         return loss
