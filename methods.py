@@ -2,9 +2,17 @@ import torch
 from torch.linalg import vector_norm
 from distances import * 
 
+import matplotlib.pyplot as plt
+
+
 EPS = 0.00001
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+def exp_map(v):
+    norm = vector_norm(v, dim=-1, keepdim=True)
+    return torch.tanh(norm) * torch.div(v, norm) 
+    
 
 class Embedder():
     #An abstract class for embedding methods. 
@@ -12,6 +20,9 @@ class Embedder():
     def __init__(self, data_size, latent_dim, latent_dist_fun=Euclidean, distr='gaussian'):
         if distr == 'gaussian':
             self.embeddings = torch.randn((data_size, latent_dim), requires_grad=True)
+        if distr == 'hypergaussian':
+            self.embeddings = exp_map(torch.randn((data_size, latent_dim), requires_grad=True))
+
         self.latent_dist_fun = latent_dist_fun
         self.data_size = data_size
 
@@ -72,3 +83,11 @@ class Contrastive(Embedder):
         loss = pos_loss + neg_loss
         
         return loss
+
+# if __name__=='__main__':
+#     X = Embedder(1000, 2, distr='hypergaussian')
+#     # X.normalize()   
+#     pts = X.embeddings.detach().cpu().numpy()
+#     plt.scatter(pts[:,0], pts[:,1])
+#     plt.gca().set_aspect('equal', 'box')
+#     plt.show()

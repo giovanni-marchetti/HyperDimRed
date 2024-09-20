@@ -118,12 +118,19 @@ if __name__ == "__main__":
         model = Contrastive(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
     else:
         raise ValueError('Model not recognized')
+
+
+
     if optimizer == 'standard':
         optimizer = StandardOptim(model, lr=lr)
     elif optimizer == 'poincare':
         optimizer = PoincareOptim(model, lr=lr)
     else:
         raise ValueError('Optimizer not recognized')
+
+
+
+        
     losses = []
     # wandb.watch(model)
     for i in range(num_epochs):
