@@ -4,6 +4,8 @@ from distances import *
 
 EPS = 0.00001
 
+sigma = 1.0
+
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 class Embedder():
@@ -11,7 +13,9 @@ class Embedder():
     
     def __init__(self, data_size, latent_dim, latent_dist_fun=Euclidean, distr='gaussian'):
         if distr == 'gaussian':
-            self.embeddings = torch.randn((data_size, latent_dim), requires_grad=True)
+            self.embeddings = sigma*torch.randn((data_size, latent_dim), requires_grad=True) #Gaussian
+            #self.embeddings = sigma*torch.rand((data_size, latent_dim), requires_grad=True) #Uniform
+
         self.latent_dist_fun = latent_dist_fun
         self.data_size = data_size
 

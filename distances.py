@@ -27,6 +27,8 @@ def Poincare(x, y):
     # x, y : (..., D)
 
     euc_dist = ((x - y)**2).sum(-1)
+#     norm_x = 1 - (x**2).sum(-1)
+#     norm_y = 1 - (y**2).sum(-1)
     norm_x = torch.clamp(1 - (x**2).sum(-1), min=EPS)
     norm_y = torch.clamp(1 - (y**2).sum(-1), min=EPS)
     x = torch.clamp(1 + 2 * torch.div(euc_dist, (norm_x * norm_y )), min=1 + EPS)
