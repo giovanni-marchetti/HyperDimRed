@@ -1,17 +1,26 @@
 import argparse
 
 import torch
-import wandb
+#import wandb
 
 from OdorDataset import OdorMonoDataset
 from utils.helpers import *
 from methods import *
 from optimizers import *
 from torch.utils.data import DataLoader
-from utils.visulization import *
+from utils.visualization import *
 import uuid
 from utils.helpers import set_seeds
 import scipy
+from distances import (
+    distance_matrix,
+    euclidean_distance,
+    poincare_distance,
+    knn_geodesic_distance_matrix,
+    knn_graph_weighted_adjacency_matrix,
+    hamming_distance_matrix
+)
+
 def hasone(node_index, dim_index):
     bin_i, bin_j = np.binary_repr(node_index), np.binary_repr(dim_index)
     length = len(bin_j)
@@ -61,6 +70,7 @@ if __name__ == "__main__":
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
+    parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian'])
     parser.add_argument('--distance_method', type=str, default='hamming', choices=['geo', 'graph', 'hamming'])
     parser.add_argument('--n_samples', type=int, default=200)
     parser.add_argument('--dim', type=int, default=768)
@@ -81,6 +91,7 @@ if __name__ == "__main__":
     optimizer = args.optimizer
     model_name = args.model_name
     latent_dist_fun = args.latent_dist_fun
+    distr = args.distr
     distance_method = args.distance_method
     # n_samples = args.n_samples
     # dim = args.dim
@@ -115,7 +126,7 @@ if __name__ == "__main__":
     elif model_name == 'mds':
         model = MDS(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
     elif model_name == 'contrastive':
-        model = Contrastive(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
+        model = Contrastive(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare, distr=distr)
     else:
         raise ValueError('Model not recognized')
 
@@ -139,13 +150,11 @@ if __name__ == "__main__":
             if normalize:
                 model.normalize()
             if distance_method == 'graph':
-                data_nn_matrix = nngraph_distance(batch,n_neighbors=3,metric='minkowski')
-                # print(data_nn_matrix)
+                data_nn_matrix = knn_graph_weighted_adjacency_matrix(batch, n_neighbors=3, metric='minkowski')
                 data_dist_matrix = (data_nn_matrix > 0).astype(int)
                 data_dist_matrix = torch.tensor(data_dist_matrix)
-                # print(data_dist_matrix)
             elif distance_method == 'geo':
-                data_dist_matrix = geo_distance(batch)
+                data_dist_matrix = knn_geodesic_distance_matrix(batch)
             elif distance_method == 'hamming':
                 data_dist_matrix = hamming_distance_matrix(batch)
                 if model_name == 'contrastive':
@@ -153,7 +162,7 @@ if __name__ == "__main__":
                     data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
                 data_dist_matrix = torch.tensor(data_dist_matrix)
             else:
-                data_dist_matrix = dist_matrix(batch, Euclidean)
+                data_dist_matrix = distance_matrix(batch, euclidean_distance)
             # if geodesic:
             #     data_dist_matrix = geo_distance(batch)
             # else:

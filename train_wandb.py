@@ -8,10 +8,19 @@ from utils.helpers import *
 from methods import *
 from optimizers import *
 from torch.utils.data import DataLoader
-from utils.visulization import *
+from utils.visualization import *
 import uuid
 from utils.helpers import set_seeds
 import scipy
+from distances import (
+    distance_matrix,
+    euclidean_distance,
+    poincare_distance,
+    knn_geodesic_distance_matrix,
+    knn_graph_weighted_adjacency_matrix,
+    hamming_distance_matrix
+)
+
 def hasone(node_index, dim_index):
     bin_i, bin_j = np.binary_repr(node_index), np.binary_repr(dim_index)
     length = len(bin_j)
@@ -176,22 +185,21 @@ def main():
                     model.normalize()
 
                 if distance_method == 'graph':
-                    data_nn_matrix = nngraph_distance(batch,n_neighbors=3,metric='minkowski')
-                    # print(data_nn_matrix)
+                    data_nn_matrix = knn_graph_weighted_adjacency_matrix(batch, n_neighbors=3, metric='minkowski')
                     data_dist_matrix = (data_nn_matrix > 0).astype(int)
                     data_dist_matrix = torch.tensor(data_dist_matrix)
                 # if dataset_name=='euclidean':
                 #     pass
                     # print(data_dist_matrix)
                 elif distance_method == 'geo':
-                    data_dist_matrix = geo_distance(batch)
+                    data_dist_matrix = knn_geodesic_distance_matrix(batch)
                 elif distance_method == 'hamming':
                     data_dist_matrix = hamming_distance_matrix(batch)
                     if model != 'mds':
                         data_dist_matrix = (data_dist_matrix <= 1.01).astype(int)
                     data_dist_matrix = torch.tensor(data_dist_matrix)
                 else:
-                    data_dist_matrix = dist_matrix(batch, Euclidean)
+                    data_dist_matrix = distance_matrix(batch, euclidean_distance)
                 # if geodesic:
                 #     data_dist_matrix = geo_distance(batch)
                 # else:

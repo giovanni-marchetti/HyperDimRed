@@ -1,6 +1,6 @@
 import torch 
 from torch.linalg import vector_norm
-from distances import * 
+from distances import distance_matrix, euclidean_distance, poincare_distance
 
 import matplotlib.pyplot as plt
 
@@ -19,7 +19,7 @@ def exp_map(v):
 class Embedder():
     #An abstract class for embedding methods. 
     
-    def __init__(self, data_size, latent_dim, latent_dist_fun=Euclidean, distr='gaussian'):
+    def __init__(self, data_size, latent_dim, latent_dist_fun=euclidean_distance, distr='gaussian'):
         if distr == 'gaussian':
             self.embeddings = sigma*torch.randn((data_size, latent_dim), requires_grad=True) #Gaussian
             #self.embeddings = torch.rand((data_size, latent_dim), requires_grad=True) #Uniform
@@ -43,7 +43,7 @@ class Embedder():
 
 class MDS(Embedder):
     def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix=None, temperature=None):
-        latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
+        latent_dist_matrix = distance_matrix(self.embeddings[idx], self.latent_dist_fun)
         return ((data_dist_matrix - latent_dist_matrix)**2).mean()
 
     
@@ -55,20 +55,20 @@ def isomap_kernel(data_dist_matrix): #input should be a distance matrix D
     
 class Isomap(Embedder):
     def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix=None, temperature=None):
-        latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
+        latent_dist_matrix = distance_matrix(self.embeddings[idx], self.latent_dist_fun)
         isomap_term = isomap_kernel(data_dist_matrix)-isomap_kernel(latent_dist_matrix)
         ##loss = torch.norm(isomap_term, p='fro')/self.data_size
         loss = torch.einsum("ij, ij ->", isomap_term, isomap_term)/self.data_size      
         return loss
 
 class Contrastive(Embedder):
-    def __init__(self, data_size, latent_dim, latent_dist_fun=Euclidean, distr='gaussian'):
+    def __init__(self, data_size, latent_dim, latent_dist_fun=euclidean_distance, distr='gaussian'):
         super().__init__(data_size, latent_dim, latent_dist_fun, distr)
         self.losses_pos = []
         self.losses_neg = []
 
     def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix, temperature=1.):
-        latent_dist_matrix = dist_matrix(self.embeddings[idx], self.latent_dist_fun)
+        latent_dist_matrix = distance_matrix(self.embeddings[idx], self.latent_dist_fun)
 
         positive_pairs = data_binary_dist_matrix == 1
         # positive_pairs = torch.tensor(positive_pairs)
