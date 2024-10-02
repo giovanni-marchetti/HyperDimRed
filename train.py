@@ -61,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--seed', type=int, default=2025)
+    parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
 
@@ -71,10 +71,10 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian'])
-    parser.add_argument('--distance_method', type=str, default='hamming', choices=['geo', 'graph', 'hamming'])
+    parser.add_argument('--distance_method', type=str, default='geo', choices=['geo', 'graph', 'hamming'])
     parser.add_argument('--n_samples', type=int, default=200)
     parser.add_argument('--dim', type=int, default=768)
-    parser.add_argument('--depth', type=bool, default=5)
+    parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=0.9)
     # args = argparse.Namespace()
     args = parser.parse_args()
@@ -122,11 +122,11 @@ if __name__ == "__main__":
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
         raise ValueError('Latent distance function not recognized')
     if model_name == 'isomap':
-        model = Isomap(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
+        model = Isomap(len(dataset), latent_dim, euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance)
     elif model_name == 'mds':
-        model = MDS(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
+        model = MDS(len(dataset), latent_dim, euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance)
     elif model_name == 'contrastive':
-        model = Contrastive(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare, distr=distr)
+        model = Contrastive(len(dataset), latent_dim, euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance, distr=distr)
     else:
         raise ValueError('Model not recognized')
 
@@ -155,6 +155,8 @@ if __name__ == "__main__":
                 data_dist_matrix = torch.tensor(data_dist_matrix)
             elif distance_method == 'geo':
                 data_dist_matrix = knn_geodesic_distance_matrix(batch)
+                if model_name == 'contrastive':
+                    data_binary_dist_matrix = (data_dist_matrix <= 1.01).to(torch.int)
             elif distance_method == 'hamming':
                 data_dist_matrix = hamming_distance_matrix(batch)
                 if model_name == 'contrastive':
