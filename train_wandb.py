@@ -38,20 +38,23 @@ def get_tree_data(depth, dtype=np.float32):
 sweep_configuration = {
 "method": "grid",
 "parameters": {
-"model_name": {"values": ['molformer']},
+"representation_name": {"values": ['molformer']},
+"batch_size": {"values": [4983]},
+"num_epochs": {"values": [1000,10000]},
 "latent_dim": {"values": [2]},
+"lr": {"values": [0.1, 0.01, 0.001, 0.05]},
 "base_dir": {"values": ['../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/']},
 "dataset_name": {"values": ['gslf']},
-"seed": {"values": [2025, 2026]},
-"num_epochs": {"values": [100]},
-"depth": {"values": [1]},
-"lr": {"values": [0.1, 0.01, 0.001, 0.0001]},
+"seed": {"values": [2024]},
+
+# "depth": {"values": [1]},
 "temperature": {"values": [1,0.9,0.95,0.8,0.85]},
 "normalize": {"values": [True]},
-"optimizer": {"values": ['poincare','standard']},
-"model": {"values": [ 'contrastive']},
+"optimizer": {"values": ['poincare']},
+"model_name": {"values": [ 'contrastive']},
 "latent_dist_fun": {"values": ['poincare']},
-"distance_method": {"values": [ 'hamming']},
+"distance_method": {"values": [ 'geo']},
+"distr": {"values": [ 'hypergaussian']},
 # "random_string": {"values": [uuid.uuid4().hex]}
 }
 }
@@ -67,33 +70,9 @@ def main():
     with wandb.init(config=None):
         args = wandb.config
         # args.random_string = uuid.uuid4().hex
-        args.batch_size = 2048 if args.dataset_name == 'gslf' else 160
         args.random_string = wandb.run.id
-        # parser = argparse.ArgumentParser('Hyperbolic Smell')
-        # parser.add_argument('--model_name', type=str, default='molformer')
-        # parser.add_argument('--batch_size', type=int, default=63)
-        # parser.add_argument('--num_epochs', type=int, default=100)
-        # parser.add_argument('--min_dist', type=float, default=1.)
-        # parser.add_argument('--latent_dim', type=int, default=2)
-        # parser.add_argument('--lr', type=float, default=0.001)
-        # parser.add_argument('--seed', type=int, default=2025)
-        # parser.add_argument('--base_dir', type=str,
-        #                     default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
-        #
-        # parser.add_argument('--dataset_name', type=str, default='tree')
-        # parser.add_argument('--normalize', type=bool, default=True)
-        # parser.add_argument('--optimizer', type=str, default='standard', choices=['standard', 'poincare'])
-        # parser.add_argument('--model', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
-        # parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
-        # parser.add_argument('--distance_method', type=str, default='hamming', choices=['geo', 'graph', 'hamming'])
-        # parser.add_argument('--n_samples', type=int, default=200)
-        # parser.add_argument('--dim', type=int, default=768)
-        # parser.add_argument('--depth', type=bool, default=5)
-        # parser.add_argument('--temperature', type=float, default=0.1)
-
-        # args = parser.parse_args()
         dataset_name = args.dataset_name
-        model_name = args.model_name
+        representation_name = args.representation_name
         num_epochs = args.num_epochs
         normalize = args.normalize
         # geodesic = args.geodesic
@@ -103,43 +82,21 @@ def main():
         seed = args.seed
         base_dir = args.base_dir
         optimizer = args.optimizer
-        model = args.model
+        model_name = args.model_name
         latent_dist_fun = args.latent_dist_fun
+        distr = args.distr
         distance_method = args.distance_method
         # n_samples = args.n_samples
         # dim = args.dim
-        depth = args.depth
+
         temperature = args.temperature
         batch_size = args.batch_size
+        set_seeds(seed)
+
+
 
 
         set_seeds(seed)
-        # wandb.init(project='hyperbolic_smell',
-        #            config = {
-        #                  'model_name': model_name,
-        #                  'batch_size': batch_size,
-        #                  'num_epochs': num_epochs,
-        #                  'min_dist': min_dist,
-        #                  'latent_dim': latent_dim,
-        #                  'lr': lr,
-        #                  'seed': seed,
-        #                  'base_dir': base_dir,
-        #                  'dataset_name': dataset_name,
-        #                  'normalize': normalize,
-        #                  'optimizer': optimizer,
-        #                  'model': model,
-        #                  'latent_dist_fun': latent_dist_fun,
-        #                  'distance_method': distance_method,
-        #                  'n_samples': n_samples,
-        #                  'dim': dim,
-        #                  'depth': depth
-        #            }
-        #            )
-
-
-
-
-
 
         if dataset_name == 'tree':
             embeddings = get_tree_data(depth)
@@ -148,22 +105,26 @@ def main():
             ## groundtruth distance from node i to the root of the tree (i.e. shortest path distance from node i to the root): hamming_distance(binary_tree[0], binary_tree[i])
             ## For visualizations, one can color a node by its groundtruth distance to the tree.
         elif dataset_name == 'random':
-            embeddings  = torch.randn(n_samples, dim)
+            embeddings = torch.randn(n_samples, dim)
         else:
-            input_embeddings = f'embeddings/{model_name}/{dataset_name}_{model_name}_embeddings_13_Apr17.csv'
-            embeddings = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True if dataset_name == 'keller' else False)
-
+            input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
+            embeddings, labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
+                                                 grand_avg=True if dataset_name == 'keller' else False)
+            print(embeddings.shape)
         dataset = OdorMonoDataset(embeddings, transform=None)
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-
         if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
             raise ValueError('Latent distance function not recognized')
-        if model == 'isomap':
-            model = Isomap(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
-        elif model == 'mds':
-            model = MDS(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
-        elif model == 'contrastive':
-            model = Contrastive(len(dataset), latent_dim, Euclidean if latent_dist_fun == 'euclidean' else Poincare)
+        if model_name == 'isomap':
+            model = Isomap(len(dataset), latent_dim,
+                           euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance)
+        elif model_name == 'mds':
+            model = MDS(len(dataset), latent_dim,
+                        euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance)
+        elif model_name == 'contrastive':
+            model = Contrastive(len(dataset), latent_dim,
+                                euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance,
+                                distr=distr)
         else:
             raise ValueError('Model not recognized')
 
@@ -174,6 +135,7 @@ def main():
         else:
             raise ValueError('Optimizer not recognized')
 
+
         losses = []
         # wandb.watch(model)
         for i in range(num_epochs):
@@ -183,34 +145,30 @@ def main():
             for idx, batch in data_loader:
                 if normalize:
                     model.normalize()
-
                 if distance_method == 'graph':
                     data_nn_matrix = knn_graph_weighted_adjacency_matrix(batch, n_neighbors=3, metric='minkowski')
                     data_dist_matrix = (data_nn_matrix > 0).astype(int)
                     data_dist_matrix = torch.tensor(data_dist_matrix)
-                # if dataset_name=='euclidean':
-                #     pass
-                    # print(data_dist_matrix)
                 elif distance_method == 'geo':
                     data_dist_matrix = knn_geodesic_distance_matrix(batch)
+                    if model_name == 'contrastive':
+                        data_binary_dist_matrix = (data_dist_matrix <= 1.01).to(torch.int)
                 elif distance_method == 'hamming':
                     data_dist_matrix = hamming_distance_matrix(batch)
-                    if model != 'mds':
-                        data_dist_matrix = (data_dist_matrix <= 1.01).astype(int)
+                    if model_name == 'contrastive':
+                        data_binary_dist_matrix = (data_dist_matrix <= 1.01).astype(int)
+                        data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
                     data_dist_matrix = torch.tensor(data_dist_matrix)
                 else:
                     data_dist_matrix = distance_matrix(batch, euclidean_distance)
-                # if geodesic:
-                #     data_dist_matrix = geo_distance(batch)
-                # else:
+
                 #     data_dist_matrix = dist_matrix(batch, Euclidean)
 
 
                 #binary matrix
 
-
                 optimizer.zero_grad()
-                loss = model.loss_fun(data_dist_matrix,idx,temperature=temperature)
+                loss = model.loss_fun(data_dist_matrix, idx, data_binary_dist_matrix, temperature)
                 loss.backward()
                 optimizer.step(idx)
                 total_loss += loss.item()
@@ -229,4 +187,4 @@ def main():
 
 sweep_id = wandb.sweep(sweep=sweep_configuration, project="hyperbolic_smell")
 
-wandb.agent(sweep_id, function=main, count=567000)
+wandb.agent(sweep_id, function=main, count=40)
