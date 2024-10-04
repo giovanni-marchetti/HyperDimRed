@@ -13,9 +13,8 @@ plt.rcParams["font.size"] = 15
 from constants import *
 def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args=None,losses=[],losses_pos=[],losses_neg=[]):
 
-    latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1).cpu().detach().numpy()
+    # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
     data_dist_matrix=scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming')*input_embeddings.shape[-1]
-    latent_embeddings = latent_embeddings.detach().cpu().numpy()
     fig,ax = plt.subplots(3,1,figsize=(10,30),sharey=False)
 
     # make n different colors
@@ -44,7 +43,7 @@ def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args
     ax[1].legend()
     ax[2].legend()
     plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
-    
+
     #create a folder if it does not exist
     if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
         os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")

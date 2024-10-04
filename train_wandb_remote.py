@@ -43,12 +43,28 @@ def get_tree_data(depth, dtype=np.float32):
 # 3: Start the sweep
 
 def main():
-    print("x0")
+
 
     with wandb.init(config=None):
-        print("x2")
+
+
+
+
+
+
         args = wandb.config
-        # args.random_string = uuid.uuid4().hex
+
+        if torch.cuda.is_available():
+            args.device = torch.device('cuda')
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+            print('Using GPU')
+        else:
+            args.device = torch.device('cpu')
+            args.gpu_index = -1
+            print('Using CPU')
+
+
         args.random_string = wandb.run.id
         dataset_name = args.dataset_name
         representation_name = args.representation_name
@@ -102,6 +118,7 @@ def main():
                                 distr=distr)
         else:
             raise ValueError('Model not recognized')
+        model = model.to(args.device)
 
         if optimizer == 'standard':
             optimizer = StandardOptim(model, lr=lr)
@@ -118,6 +135,7 @@ def main():
 
 
             for idx, batch in data_loader:
+                batch = batch.to(args.device)
                 if normalize:
                     model.normalize()
                 if distance_method == 'graph':
@@ -125,7 +143,7 @@ def main():
                     data_dist_matrix = (data_nn_matrix > 0).astype(int)
                     data_dist_matrix = torch.tensor(data_dist_matrix)
                 elif distance_method == 'geo':
-                    data_dist_matrix = knn_geodesic_distance_matrix(batch)
+                    data_dist_matrix = knn_geodesic_distance_matrix(batch.detach().cpu().numpy())
                     if model_name == 'contrastive':
                         data_binary_dist_matrix = (data_dist_matrix <= 1.01).to(torch.int)
                 elif distance_method == 'hamming':
@@ -146,7 +164,7 @@ def main():
             losses.append(total_loss/len(data_loader))
             wandb.log({'loss': total_loss/len(data_loader)})
 
-        scatterplot_2d(losses, model.embeddings,dataset.embeddings, args=args)
+        scatterplot_2d( model.embeddings.detach().cpu().numpy(),dataset.embeddings.detach().cpu().numpy(), args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
 if __name__ == "__main__":
     main()
 # sweep_id = wandb.sweep(sweep=sweep_configuration, project="hyperbolic_smell")

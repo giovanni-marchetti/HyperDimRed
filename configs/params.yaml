@@ -5,12 +5,12 @@ metric:
 parameters:
   representation_name:
     value: 'molformer'
+  depth:
+    value: None
   batch_size:
     value: 4982
   num_epochs:
-    values:
-      - 1000
-      - 10000
+    value: 2
   latent_dim:
     value: 2
   lr:

@@ -13,13 +13,22 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 
 def exp_map(v):
     norm = vector_norm(v, dim=-1, keepdim=True)
-    return torch.tanh(norm) * torch.div(v, norm) 
-    
+    return torch.tanh(norm) * torch.div(v, norm)
 
-class Embedder():
+
+def isomap_kernel(data_dist_matrix):  # input should be a distance matrix D
+    N = data_dist_matrix.shape[0]  # number of points considered
+    I = torch.eye(N).to(device)
+    A = torch.ones(N, N).to(device)
+    return -0.5 * torch.matmul(torch.matmul(I - (1 / N) * A, torch.matmul(data_dist_matrix, data_dist_matrix)),
+                               (I - (1 / N) * A))
+
+
+class Embedder(torch.nn.Module):
     #An abstract class for embedding methods. 
     
     def __init__(self, data_size, latent_dim, latent_dist_fun=euclidean_distance, distr='gaussian'):
+        super().__init__()
         if distr == 'gaussian':
             self.embeddings = sigma*torch.randn((data_size, latent_dim), requires_grad=True) #Gaussian
             #self.embeddings = torch.rand((data_size, latent_dim), requires_grad=True) #Uniform
@@ -36,7 +45,10 @@ class Embedder():
             self.embeddings  = torch.where(norms < 1, self.embeddings , self.embeddings / (norms + EPS))
             self.embeddings.requires_grad = True
             self.embeddings.retain_grad()
-            
+
+    def forward(self):
+        pass
+
     def loss_fun(self):
         pass
 
@@ -47,12 +59,7 @@ class MDS(Embedder):
         return ((data_dist_matrix - latent_dist_matrix)**2).mean()
 
     
-def isomap_kernel(data_dist_matrix): #input should be a distance matrix D
-    N = data_dist_matrix.shape[0] # number of points considered
-    I = torch.eye(N).to(device)
-    A = torch.ones(N,N).to(device)
-    return -0.5*torch.matmul(torch.matmul(I - (1/N) * A, torch.matmul(data_dist_matrix, data_dist_matrix)), (I - (1 / N) * A))
-    
+
 class Isomap(Embedder):
     def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix=None, temperature=None):
         latent_dist_matrix = distance_matrix(self.embeddings[idx], self.latent_dist_fun)
@@ -63,6 +70,7 @@ class Isomap(Embedder):
 
 class Contrastive(Embedder):
     def __init__(self, data_size, latent_dim, latent_dist_fun=euclidean_distance, distr='gaussian'):
+
         super().__init__(data_size, latent_dim, latent_dist_fun, distr)
         self.losses_pos = []
         self.losses_neg = []
