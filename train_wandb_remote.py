@@ -45,7 +45,7 @@ def get_tree_data(depth, dtype=np.float32):
 def main():
 
 
-    with wandb.init(config=None):
+    with wandb.init(config=None) as run:
 
 
 
@@ -165,6 +165,7 @@ def main():
             wandb.log({'loss': total_loss/len(data_loader)})
 
         scatterplot_2d( model.embeddings.detach().cpu().numpy(),dataset.embeddings.detach().cpu().numpy(), args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
+        run.finish()
 if __name__ == "__main__":
     main()
 # sweep_id = wandb.sweep(sweep=sweep_configuration, project="hyperbolic_smell")
