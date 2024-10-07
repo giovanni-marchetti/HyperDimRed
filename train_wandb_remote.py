@@ -43,15 +43,7 @@ def get_tree_data(depth, dtype=np.float32):
 # 3: Start the sweep
 
 def main():
-
-
     with wandb.init(config=None) as run:
-
-
-
-
-
-
         args = wandb.config
 
         if torch.cuda.is_available():
@@ -70,8 +62,6 @@ def main():
         representation_name = args.representation_name
         num_epochs = args.num_epochs
         normalize = args.normalize
-        # geodesic = args.geodesic
-        # min_dist = args.min_dist
         latent_dim = args.latent_dim
         lr = args.lr
         seed = args.seed
@@ -81,8 +71,7 @@ def main():
         latent_dist_fun = args.latent_dist_fun
         distr = args.distr
         distance_method = args.distance_method
-        # n_samples = args.n_samples
-        # dim = args.dim
+
 
         temperature = args.temperature
         batch_size = args.batch_size
@@ -102,7 +91,7 @@ def main():
             embeddings, labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
                                                  grand_avg=True if dataset_name == 'keller' else False)
             print(embeddings.shape)
-        dataset = OdorMonoDataset(embeddings, transform=None)
+        dataset = OdorMonoDataset(embeddings,labels, transform=None)
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
         if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
             raise ValueError('Latent distance function not recognized')
@@ -134,8 +123,9 @@ def main():
             total_loss=0
 
 
-            for idx, batch in data_loader:
+            for idx, batch,label in data_loader:
                 batch = batch.to(args.device)
+                label = label.to(args.device)
                 if normalize:
                     model.normalize()
                 if distance_method == 'graph':
@@ -164,7 +154,7 @@ def main():
             losses.append(total_loss/len(data_loader))
             wandb.log({'loss': total_loss/len(data_loader)})
 
-        scatterplot_2d( model.embeddings.detach().cpu().numpy(),dataset.embeddings.detach().cpu().numpy(), args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
+        scatterplot_2d( model.embeddings.detach().cpu().numpy(),dataset.labels.detach().cpu().numpy(), args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
         run.finish()
 if __name__ == "__main__":
     main()

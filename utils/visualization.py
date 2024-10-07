@@ -9,13 +9,13 @@ import numpy as np
 import scipy
 import torch
 import os
-plt.rcParams["font.size"] = 15
+plt.rcParams["font.size"] = 45
 from constants import *
 def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args=None,losses=[],losses_pos=[],losses_neg=[]):
 
     # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
     data_dist_matrix=scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming')*input_embeddings.shape[-1]
-    fig,ax = plt.subplots(3,1,figsize=(10,30),sharey=False)
+    fig,ax = plt.subplots(3,1,figsize=(100,300),sharey=False)
 
     # make n different colors
     colors = sns.color_palette("hsv", data_dist_matrix.shape[0])
@@ -49,9 +49,13 @@ def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args
         os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
     plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
     
-    plt.show()
+    # plt.show()
     
     plt.close()
+    np.save(
+        f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.npy",
+        latent_embeddings)
+    print("saved")
 def scatterplot_2d_gslf(latent_embeddings,input_embeddings,labels, color_map='viridis', args=None,losses=[],losses_pos=[],losses_neg=[]):
 
     type1 = {'floral': '#F3F1F7', 'muguet': '#FAD7E6', 'lavender': '#8883BE', 'jasmin': '#BD81B7'}
@@ -100,6 +104,7 @@ def scatterplot_2d_gslf(latent_embeddings,input_embeddings,labels, color_map='vi
         os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
     plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
     plt.close()
+
 
 #
 

@@ -5,10 +5,14 @@ from sklearn.metrics.pairwise import euclidean_distances
 
 from utils.helpers import *
 class OdorMonoDataset(Dataset):
-    def __init__(self, embeddings, transform=None):
+    def __init__(self, embeddings,labels=None, transform=None):
 
         self.transform = transform
         self.embeddings = embeddings
+        if labels is not None:
+            self.labels = labels
+        else:
+            self.labels = embeddings
 
 
 
@@ -17,10 +21,15 @@ class OdorMonoDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.embeddings[idx]
+
         if self.transform:
             sample = self.transform(sample)
+        if self.labels is not None:
+            label = self.labels[idx]
+        else:
+            label = self.embeddings[idx]
 
-        return idx, sample
+        return idx, sample,label
 
 
 

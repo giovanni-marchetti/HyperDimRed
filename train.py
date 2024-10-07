@@ -43,29 +43,19 @@ def get_tree_data(depth, dtype=np.float32):
 
 
 if __name__ == "__main__":
-    # add arguments
-
-
-    # wandb.init(project='hyperbolic_smell')
-    # wandb.config = args
-
-    # args = wandb.config
-    # args.random_string = uuid.uuid4().hex
-
-    # plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--representation_name', type=str, default='molformer')
-    parser.add_argument('--batch_size', type=int, default=2048)
-    parser.add_argument('--num_epochs', type=int, default=1000)
-    parser.add_argument('--min_dist', type=float, default=1.)
+    parser.add_argument('--batch_size', type=int, default=4983)
+    parser.add_argument('--num_epochs', type=int, default=2)
+    # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--seed', type=int, default=2024)
     parser.add_argument('--base_dir', type=str,
                         default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
 
-    parser.add_argument('--dataset_name', type=str, default='tree')
+    parser.add_argument('--dataset_name', type=str, default='gslf')
     parser.add_argument('--normalize', type=bool, default=True)
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -74,16 +64,27 @@ if __name__ == "__main__":
     parser.add_argument('--distance_method', type=str, default='geo', choices=['geo', 'graph', 'hamming'])
     parser.add_argument('--n_samples', type=int, default=200)
     parser.add_argument('--dim', type=int, default=768)
-    parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=0.9)
+    parser.add_argument('--depth', type=int, default=None)  # Changed from bool to int
+    parser.add_argument('--temperature', type=float, default=0.8)
     # args = argparse.Namespace()
     args = parser.parse_args()
+
+    if torch.cuda.is_available():
+        args.device = torch.device('cuda')
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        print('Using GPU')
+    else:
+        args.device = torch.device('cpu')
+        args.gpu_index = -1
+        print('Using CPU')
+
+
+    args.random_string = uuid.uuid4().hex
     dataset_name = args.dataset_name
     representation_name = args.representation_name
     num_epochs = args.num_epochs
     normalize = args.normalize
-    # geodesic = args.geodesic
-    # min_dist = args.min_dist
     latent_dim = args.latent_dim
     lr = args.lr
     seed = args.seed
@@ -93,16 +94,13 @@ if __name__ == "__main__":
     latent_dist_fun = args.latent_dist_fun
     distr = args.distr
     distance_method = args.distance_method
-    # n_samples = args.n_samples
-    # dim = args.dim
-    depth = args.depth
+
     temperature = args.temperature
 
     ### Overwrite the batchsize ###
-    args.batch_size = 2 ** args.depth - 1 #to get full batch
+    # depth = args.depth
+    # args.batch_size = 2 ** args.depth - 1 #to get full batch
     batch_size = args.batch_size
-    
-    args.random_string = uuid.uuid4().hex
     set_seeds(seed)
 
 
@@ -117,7 +115,8 @@ if __name__ == "__main__":
     else:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings,labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings, grand_avg=True if dataset_name == 'keller' else False)
-    dataset = OdorMonoDataset(embeddings, transform=None)
+        print(embeddings.shape)
+    dataset = OdorMonoDataset(embeddings,labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
         raise ValueError('Latent distance function not recognized')
@@ -129,7 +128,7 @@ if __name__ == "__main__":
         model = Contrastive(len(dataset), latent_dim, euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance, distr=distr)
     else:
         raise ValueError('Model not recognized')
-
+    model = model.to(args.device)
 
 
     if optimizer == 'standard':
@@ -146,7 +145,9 @@ if __name__ == "__main__":
     # wandb.watch(model)
     for i in range(num_epochs):
         total_loss=0
-        for idx, batch in data_loader:
+        for idx, batch,label in data_loader:
+            batch = batch.to(args.device)
+            label = label.to(args.device)
             if normalize:
                 model.normalize()
             if distance_method == 'graph':
@@ -185,6 +186,7 @@ if __name__ == "__main__":
         # laten_embeddings_norm= torch.norm(model.embeddings, dim=-1).cpu().detach().numpy()
         # e=scipy.spatial.distance.cdist(data_loader.dataset.embeddings, data_loader.dataset.embeddings, metric='hamming')*data_loader.dataset.embeddings.shape[-1]
         # scatterplot_2d(losses, model.embeddings.detach().cpu().numpy(), laten_embeddings_norm, args=args, data_dist_matrix=e)
-    scatterplot_2d( model.embeddings,dataset.embeddings, args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
+    print(dataset.embeddings.shape,"shape")
+    scatterplot_2d( model.embeddings.detach().cpu().numpy(),dataset.labels.detach().cpu().numpy(), args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
 
 #
