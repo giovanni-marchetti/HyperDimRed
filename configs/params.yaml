@@ -10,7 +10,7 @@ parameters:
   batch_size:
     value: 4982
   num_epochs:
-    value: 2
+    value: 100000
   latent_dim:
     value: 2
   lr:
@@ -21,23 +21,21 @@ parameters:
       - 0.05
   base_dir:
 #    value: '../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/'
-    value: '/local_storage/datasets/farzaneh/'
+    value: '/local_storage/datasets/farzaneh/alignment_olfaction_datasets/curated_datasets/'
   dataset_name:
     value: gslf
   seed:
-    values:
-      - 2024
-      - 2025
-      - 2026
-      - 2027
-      - 2028
+    value: 2024
+
   temperature:
     values:
      - 1
-     - 0.9
-     - 0.95
-     - 0.8
-     - 0.85
+     - 2
+     - 3
+     - 4
+     - 6
+     - 0.5
+     - 0.6
   normalize:
     value: True
   optimizer:
@@ -47,6 +45,14 @@ parameters:
   latent_dist_fun:
     value: 'poincare'
   distance_method:
-    value: 'geo'
+    value: 'euclidean'
   distr:
     value: 'hypergaussian'
+  n_neighbors:
+    values:
+      - 10
+      - 20
+      - 25
+      - 30
+      - 40
+      - 50
