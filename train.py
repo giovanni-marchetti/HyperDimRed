@@ -67,6 +67,7 @@ if __name__ == "__main__":
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=10)
+    parser.add_argument('--n_neighbors', type=int, default=3)
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     latent_dist_fun = args.latent_dist_fun
     distr = args.distr
     distance_method = args.distance_method
-
+    n_neighbors = args.n_neighbors
     temperature = args.temperature
 
     ### Overwrite the batchsize ###
@@ -171,7 +172,7 @@ if __name__ == "__main__":
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 # positive_pairs
                 if model_name == 'contrastive':
-                    data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=3, mode='connectivity', include_self=False).toarray()
+                    data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=n_neighbors, mode='connectivity', include_self=False).toarray()
 
             else:
                 data_dist_matrix = distance_matrix(batch, euclidean_distance)
