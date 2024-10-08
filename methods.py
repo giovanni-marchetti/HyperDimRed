@@ -1,6 +1,6 @@
 import torch 
 from torch.linalg import vector_norm
-from distances import distance_matrix, euclidean_distance, poincare_distance
+from distances import euclidean_distance, poincare_distance,distance_matrix
 
 import matplotlib.pyplot as plt
 
@@ -75,25 +75,27 @@ class Contrastive(Embedder):
         self.losses_pos = []
         self.losses_neg = []
 
-    def loss_fun(self, data_dist_matrix, idx, data_binary_dist_matrix, temperature=1.):
+    def loss_fun(self, data_dist_matrix, idx, neighborhood_matrix, temperature=1.,metricity=True):
         latent_dist_matrix = distance_matrix(self.embeddings[idx], self.latent_dist_fun)
 
-        positive_pairs = data_binary_dist_matrix == 1
+        positive_pairs = neighborhood_matrix == 1
         # positive_pairs = torch.tensor(positive_pairs)
         
         #pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
-        pos_loss = ((latent_dist_matrix[positive_pairs]-data_dist_matrix[positive_pairs])**2).sum()/temperature # with metricity injected
-        
-        negative_pairs = data_binary_dist_matrix == 0
+
+
+        pos_loss = ((latent_dist_matrix[positive_pairs]-float(metricity)*data_dist_matrix[positive_pairs])**2).sum()/temperature # with metricity injected
+
+        negative_pairs = neighborhood_matrix == 0
         # negative_pairs = torch.tensor(negative_pairs)
         # print(negative_pairs.shape)
-        
+
         #neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
         neg_loss = torch.logsumexp(-(latent_dist_matrix[negative_pairs])**2/temperature, dim=0)
         self.losses_pos.append(pos_loss.item())
         self.losses_neg.append(neg_loss.item())
         loss = pos_loss + neg_loss
-        
+
         return loss
 
 # if __name__=='__main__':

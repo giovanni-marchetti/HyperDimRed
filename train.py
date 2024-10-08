@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from utils.visualization import *
 import uuid
 from utils.helpers import set_seeds
+from sklearn.neighbors import kneighbors_graph
 import scipy
 from distances import (
     distance_matrix,
@@ -18,7 +19,7 @@ from distances import (
     poincare_distance,
     knn_geodesic_distance_matrix,
     knn_graph_weighted_adjacency_matrix,
-    hamming_distance_matrix
+    # hamming_distance_matrix
 )
 
 def hasone(node_index, dim_index):
@@ -32,7 +33,7 @@ def get_tree_data(depth, dtype=np.float32):
     x = np.fromfunction(lambda i, j: np.vectorize(hasone)(i + 1, j + 1),
                         (n, n), dtype=np.int32).astype(dtype)
     # print(x.shape)
-    return x
+    return x,x
 
 
 ### If using Jupyter Notebook:###
@@ -47,7 +48,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--representation_name', type=str, default='molformer')
     parser.add_argument('--batch_size', type=int, default=4983)
-    parser.add_argument('--num_epochs', type=int, default=2)
+    parser.add_argument('--num_epochs', type=int, default=10000)
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.01)
@@ -55,17 +56,17 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='../../../T5 EVO/alignment_olfaction_datasets/curated_datasets/')
 
-    parser.add_argument('--dataset_name', type=str, default='gslf')
+    parser.add_argument('--dataset_name', type=str, default='tree')
     parser.add_argument('--normalize', type=bool, default=True)
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian'])
-    parser.add_argument('--distance_method', type=str, default='geo', choices=['geo', 'graph', 'hamming'])
+    parser.add_argument('--distance_method', type=str, default='euclidean', choices=['geo', 'graph', 'hamming','euclidean'])
     parser.add_argument('--n_samples', type=int, default=200)
     parser.add_argument('--dim', type=int, default=768)
-    parser.add_argument('--depth', type=int, default=None)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=0.8)
+    parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
+    parser.add_argument('--temperature', type=float, default=10)
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -98,14 +99,15 @@ if __name__ == "__main__":
     temperature = args.temperature
 
     ### Overwrite the batchsize ###
-    # depth = args.depth
-    # args.batch_size = 2 ** args.depth - 1 #to get full batch
+    depth = args.depth
+    args.batch_size = 2 ** args.depth - 1 #to get full batch
     batch_size = args.batch_size
     set_seeds(seed)
 
 
     if dataset_name == 'tree':
-        embeddings = get_tree_data(depth)
+        embeddings,labels = get_tree_data(depth)
+        labels = torch.tensor(labels)
         ## binary_tree is a dataset of binary sequences.
         ## The root of the tree is the node 0: binary_tree[0]
         ## groundtruth distance from node i to the root of the tree (i.e. shortest path distance from node i to the root): hamming_distance(binary_tree[0], binary_tree[i])
@@ -164,6 +166,13 @@ if __name__ == "__main__":
                     data_binary_dist_matrix = (data_dist_matrix <= 1.01).astype(int)
                     data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
                 data_dist_matrix = torch.tensor(data_dist_matrix)
+            elif distance_method == 'euclidean':
+                data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='euclidean')
+                data_dist_matrix = torch.tensor(data_dist_matrix)
+                # positive_pairs
+                if model_name == 'contrastive':
+                    data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=3, mode='connectivity', include_self=False).toarray()
+
             else:
                 data_dist_matrix = distance_matrix(batch, euclidean_distance)
             # if geodesic:
@@ -186,7 +195,12 @@ if __name__ == "__main__":
         # laten_embeddings_norm= torch.norm(model.embeddings, dim=-1).cpu().detach().numpy()
         # e=scipy.spatial.distance.cdist(data_loader.dataset.embeddings, data_loader.dataset.embeddings, metric='hamming')*data_loader.dataset.embeddings.shape[-1]
         # scatterplot_2d(losses, model.embeddings.detach().cpu().numpy(), laten_embeddings_norm, args=args, data_dist_matrix=e)
-    print(dataset.embeddings.shape,"shape")
-    scatterplot_2d( model.embeddings.detach().cpu().numpy(),dataset.labels.detach().cpu().numpy(), args=args,losses=losses,losses_neg=model.losses_neg if model_name=='contrastive' else [],losses_pos=model.losses_pos if model_name=='contrastive' else [])
+        if i % 9999== 0:
+            save_embeddings(i,args, model.embeddings.detach().cpu().numpy(), losses=losses,
+                        losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+                        losses_pos=model.losses_pos if model_name == 'contrastive' else [])
+            scatterplot_2d(i,model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), save=False, args=args,
+                       losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+                       losses_pos=model.losses_pos if model_name == 'contrastive' else [])
 
 #

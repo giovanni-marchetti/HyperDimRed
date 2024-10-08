@@ -11,19 +11,19 @@ import torch
 import os
 plt.rcParams["font.size"] = 45
 from constants import *
-def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args=None,losses=[],losses_pos=[],losses_neg=[]):
-
+def scatterplot_2d(i,latent_embeddings,input_embeddings, args=None,save=False,plot_edges=True,losses=[],losses_pos=[],losses_neg=[]):
+    color_map = 'viridis'
     # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
     data_dist_matrix=scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming')*input_embeddings.shape[-1]
-    fig,ax = plt.subplots(3,1,figsize=(100,300),sharey=False)
+    fig,ax = plt.subplots(3,1,figsize=(30,90),sharey=False)
 
     # make n different colors
     colors = sns.color_palette("hsv", data_dist_matrix.shape[0])
-
-    for i in range(data_dist_matrix.shape[0]):
-        for j in range(i+1, data_dist_matrix.shape[1]):
-            if data_dist_matrix[i,j] <= 1.01:
-                ax[0].plot([latent_embeddings[i,0], latent_embeddings[j,0]], [latent_embeddings[i,1], latent_embeddings[j,1]], color=colors[i], linewidth=0.5)
+    if plot_edges:
+        for i in range(data_dist_matrix.shape[0]):
+            for j in range(i+1, data_dist_matrix.shape[1]):
+                if data_dist_matrix[i,j] <= 1.01:
+                    ax[0].plot([latent_embeddings[i,0], latent_embeddings[j,0]], [latent_embeddings[i,1], latent_embeddings[j,1]], color=colors[i], linewidth=0.5)
 
 #     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=data_dist_matrix[0,:], cmap=color_map)
@@ -45,17 +45,37 @@ def scatterplot_2d(latent_embeddings,input_embeddings, color_map='viridis', args
     plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
 
     #create a folder if it does not exist
-    if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
-        os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
-    plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
+    if save:
+        if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+            os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+        plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}.png")
+        plt.close()
+    else:
+        plt.show()
     
-    # plt.show()
-    
-    plt.close()
+
+
+
+
+def save_embeddings(i,args, latent_embeddings,losses=[],losses_pos=[],losses_neg=[]):
+    if not os.path.exists(
+            f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+        os.makedirs(
+            f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+
     np.save(
-        f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.npy",
+        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_embeddings.npy",
         latent_embeddings)
-    print("saved")
+    np.save(
+        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.npy",
+        losses)
+    np.save( f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossespos.npy",
+        losses_pos)
+    np.save( f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossesneg.npy",
+        losses_neg)
+
+
+
 def scatterplot_2d_gslf(latent_embeddings,input_embeddings,labels, color_map='viridis', args=None,losses=[],losses_pos=[],losses_neg=[]):
 
     type1 = {'floral': '#F3F1F7', 'muguet': '#FAD7E6', 'lavender': '#8883BE', 'jasmin': '#BD81B7'}
@@ -103,6 +123,7 @@ def scatterplot_2d_gslf(latent_embeddings,input_embeddings,labels, color_map='vi
     if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
         os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
     plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
+
     plt.close()
 
 
