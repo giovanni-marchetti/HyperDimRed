@@ -48,16 +48,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--representation_name', type=str, default='molformer')
-    parser.add_argument('--batch_size', type=int, default=200)
-    parser.add_argument('--num_epochs', type=int, default=1001)
+    parser.add_argument('--batch_size', type=int, default=200) #200
+    parser.add_argument('--num_epochs', type=int, default=10001)
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.00001)
+    parser.add_argument('--lr', type=float, default=0.001) #0.001 for sagar, same keller
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='sagar')  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagar')  # tree for synthetic,  for real: gslf, sagar, keller
     parser.add_argument('--normalize', type=bool, default=True)  # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_samples', type=int, default=200)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=0.1)  # 10
+    parser.add_argument('--temperature', type=float, default=0.1)  # 10 #0.1 for sagar, 100 keller
     parser.add_argument('--n_neighbors', type=int, default=3)
     # args = argparse.Namespace()
     args = parser.parse_args()
@@ -117,8 +117,10 @@ if __name__ == "__main__":
         embeddings = torch.randn(n_samples, dim)
     else:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
+ #       embeddings, labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
+ #                                            grand_avg=True if dataset_name == 'keller' else False) #grand_avg=True
         embeddings, labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True if dataset_name == 'keller' else False)
+                                             grand_avg=True) 
         print(embeddings.shape)
     dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -170,11 +172,11 @@ if __name__ == "__main__":
                     data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
                 data_dist_matrix = torch.tensor(data_dist_matrix)
             elif distance_method == 'euclidean':
-                data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='euclidean')
-                histo = data_dist_matrix.flatten()
-                plt.hist(histo)
-                plt.show()
-                # data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
+                #data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='euclidean')
+#                histo = data_dist_matrix.flatten()
+#                plt.hist(histo)
+#                plt.show()
+                data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
 
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 # positive_pairs

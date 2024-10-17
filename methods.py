@@ -13,7 +13,9 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 
 def exp_map(v):
     norm = vector_norm(v, dim=-1, keepdim=True)
-    return torch.tanh(norm) * torch.div(v, norm)
+    #return torch.tanh(norm) * torch.div(v, norm)
+    return torch.sinh(norm) * torch.div(v, norm)
+
 
 
 def isomap_kernel(data_dist_matrix):  # input should be a distance matrix D
