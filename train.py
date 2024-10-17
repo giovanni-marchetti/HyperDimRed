@@ -44,20 +44,58 @@ def get_tree_data(depth, dtype=np.float32):
 ###
 
 
+def select_subjects(subjects, embeddings, labels, CIDs,subjects_ids,subject_id=None,n_subject=None):
+    if subject_id is not None and n_subject is not None:
+        raise ValueError('You can only provide either subject_id or n_subject')
+    elif subject_id is not None:
+        if type(subject_id) == int:
+
+
+            embeddings = embeddings[subjects == subject_id]
+            labels = labels[subjects == subject_id]
+            CIDs = CIDs[subjects == subject_id]
+            subjects = subjects[subjects == subject_id]
+        else:
+            embeddings = embeddings[np.isin(subjects, subject_id)]
+            labels = labels[np.isin(subjects, subject_id)]
+            CIDs = CIDs[np.isin(subjects, subject_id)]
+            subjects = subjects[np.isin(subjects, subject_id)]
+
+    elif n_subject is not None:
+        # randomize subjects_id and select n_subjects
+        subjects_ids = np.random.permutation(subjects_ids)
+        n_subjects = subjects_ids[:n_subject]
+        embeddings = embeddings[np.isin(subjects, n_subjects)]
+        labels = labels[np.isin(subjects, n_subjects)]
+        CIDs = CIDs[np.isin(subjects, n_subjects)]
+        subjects = subjects[np.isin(subjects, n_subjects)]
+    else:
+        raise ValueError('Please provide either subject_id or n_subject')
+
+
+    return embeddings, labels, CIDs, subjects
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--representation_name', type=str, default='molformer')
     parser.add_argument('--batch_size', type=int, default=200) #200
     parser.add_argument('--num_epochs', type=int, default=10001)
+    parser.add_argument('--batch_size', type=int, default=200)
+    parser.add_argument('--num_epochs', type=int, default=2001)
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.001) #0.001 for sagar, same keller
     parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--lr', type=float, default=0.001)
+    # parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--seed', type=int, default=2)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
     parser.add_argument('--dataset_name', type=str, default='sagar')  # tree for synthetic,  for real: gslf, sagar, keller
+    parser.add_argument('--dataset_name', type=str, default='keller')  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True)  # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -68,8 +106,8 @@ if __name__ == "__main__":
     parser.add_argument('--n_samples', type=int, default=200)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=0.1)  # 10 #0.1 for sagar, 100 keller
-    parser.add_argument('--n_neighbors', type=int, default=3)
+    parser.add_argument('--temperature', type=float, default=100)  # 10
+    parser.add_argument('--n_neighbors', type=int, default=30)
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -117,11 +155,11 @@ if __name__ == "__main__":
         embeddings = torch.randn(n_samples, dim)
     else:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
- #       embeddings, labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
- #                                            grand_avg=True if dataset_name == 'keller' else False) #grand_avg=True
-        embeddings, labels = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True) 
-        print(embeddings.shape)
+        embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
+                                             grand_avg=False)
+
+        embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
     dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
@@ -177,6 +215,11 @@ if __name__ == "__main__":
 #                plt.hist(histo)
 #                plt.show()
                 data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
+                data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
+                # histo = data_dist_matrix.flatten()
+                # plt.hist(histo)
+                # plt.show()
+                # data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
 
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 # positive_pairs
@@ -206,23 +249,31 @@ if __name__ == "__main__":
         # laten_embeddings_norm= torch.norm(model.embeddings, dim=-1).cpu().detach().numpy()
         # e=scipy.spatial.distance.cdist(data_loader.dataset.embeddings, data_loader.dataset.embeddings, metric='hamming')*data_loader.dataset.embeddings.shape[-1]
         # scatterplot_2d(losses, model.embeddings.detach().cpu().numpy(), laten_embeddings_norm, args=args, data_dist_matrix=e)
-        if num_epochs > 100:
-            if i % 100 == 0:  # 1000
-                save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
-                                losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                                losses_pos=model.losses_pos if model_name == 'contrastive' else [])
-                scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(),
-                               save=True, args=args,
-                               losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                               losses_pos=model.losses_pos if model_name == 'contrastive' else [])
-
-        if i % (num_epochs - 1) == 0 and i != 0:
-            save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
-                            losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [])
-            scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), save=True,
-                           args=args,
+        # if num_epochs > 100:
+        if i % 10 == 0:  # 1000
+            # save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
+            #                 losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+            #                 losses_pos=model.losses_pos if model_name == 'contrastive' else [])
+            scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(),CIDs,subjects=subjects,color_ENTROPY=False, shape_subject=False,
+                           save=True, args=args,
                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
                            losses_pos=model.losses_pos if model_name == 'contrastive' else [])
+
+        #     scatterplot_2d_subjectshape(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), subjects,
+        #                                 save=True, args=args,
+        #                                 losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+        #                                 losses_pos=model.losses_pos if model_name == 'contrastive' else [])
+        #     scatterplot_2d_subjectshape(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), subjects,
+        #                                 save=True, args=args,
+        #                                 losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+        #                                 losses_pos=model.losses_pos if model_name == 'contrastive' else [])
+        # # if i % (num_epochs - 1) == 0 and i != 0:
+        #     save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
+        #                     losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+        #                     losses_pos=model.losses_pos if model_name == 'contrastive' else [])
+        #     scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), save=True,
+        #                    args=args,
+        #                    losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+        #                    losses_pos=model.losses_pos if model_name == 'contrastive' else [])
 
 #

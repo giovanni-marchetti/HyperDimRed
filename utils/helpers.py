@@ -18,6 +18,9 @@ def set_seeds(seed):
 def prepare_dataset(ds):
     ds['y'] = ds['y'].apply(ast.literal_eval)
     ds['embeddings'] = ds['embeddings'].apply(ast.literal_eval)
+    # ds['CID'] = ds['CID'].apply(ast.literal_eval)
+    # if 'subject' in ds.columns:
+    #     ds['subject'] = ds['subject'].apply(ast.literal_eval)
     return ds
 
 
@@ -210,16 +213,28 @@ def select_descriptors(dataset_name):
     else:
         return None
 
-def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg):
+def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg,avg_per_subject=False):
 
     ds = pd.read_csv(base_dir + embeddings_perception_csv)
     ds = prepare_dataset(ds)
-    if grand_avg:
+    if avg_per_subject:
+        ds = average_per_subject(ds, descriptors)
+    elif grand_avg:
         ds = grand_average(ds, descriptors)
+    else:
+        pass
     # self.labels = self.ds['y']
     labels = ds['y']
     embeddings = ds['embeddings']
+
+    if 'subject' in ds.columns:
+        subjects = ds['subject']
+    else:
+        subjects = None
+    CIDs = ds['CID']
     embeddings = torch.from_numpy(np.array(embeddings.tolist()))
     labels = torch.from_numpy(np.array(labels.tolist()))
-    return embeddings,labels
+    subjects = torch.from_numpy(np.array(subjects.tolist()))
+    CIDs = torch.from_numpy(np.array(CIDs.tolist()))
+    return embeddings,labels,subjects,CIDs
 
