@@ -44,6 +44,38 @@ def get_tree_data(depth, dtype=np.float32):
 ###
 
 
+def select_subjects(subjects, embeddings, labels, CIDs,subjects_ids,subject_id=None,n_subject=None):
+    if subject_id is not None and n_subject is not None:
+        raise ValueError('You can only provide either subject_id or n_subject')
+    elif subject_id is not None:
+        if type(subject_id) == int:
+
+
+            embeddings = embeddings[subjects == subject_id]
+            labels = labels[subjects == subject_id]
+            CIDs = CIDs[subjects == subject_id]
+            subjects = subjects[subjects == subject_id]
+        else:
+            embeddings = embeddings[np.isin(subjects, subject_id)]
+            labels = labels[np.isin(subjects, subject_id)]
+            CIDs = CIDs[np.isin(subjects, subject_id)]
+            subjects = subjects[np.isin(subjects, subject_id)]
+
+    elif n_subject is not None:
+        # randomize subjects_id and select n_subjects
+        subjects_ids = np.random.permutation(subjects_ids)
+        n_subjects = subjects_ids[:n_subject]
+        embeddings = embeddings[np.isin(subjects, n_subjects)]
+        labels = labels[np.isin(subjects, n_subjects)]
+        CIDs = CIDs[np.isin(subjects, n_subjects)]
+        subjects = subjects[np.isin(subjects, n_subjects)]
+    else:
+        raise ValueError('Please provide either subject_id or n_subject')
+
+
+    return embeddings, labels, CIDs, subjects
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
@@ -120,12 +152,9 @@ if __name__ == "__main__":
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
                                              grand_avg=False)
-        # subject_id =1
-        # embeddings = embeddings[subjects==subject_id]
-        # labels = labels[subjects==subject_id]
-        # CIDs = CIDs[subjects==subject_id]
-        # subjects = subjects[subjects==subject_id]
-        # print(embeddings.shape)
+
+        embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
     dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
