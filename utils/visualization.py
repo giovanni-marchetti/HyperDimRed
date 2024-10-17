@@ -10,45 +10,20 @@ import numpy as np
 import scipy
 import torch
 import os
-
+import matplotlib
 plt.rcParams["font.size"] = 45
 plt.rcParams['agg.path.chunksize'] = 10000
 
 from constants import *
 
 
-def scatterplot_2d(i, latent_embeddings, input_embeddings, args=None, save=False, plot_edges=False, losses=[],
+def scatterplot_2d_loss(i, input_embeddings, args=None, save=False, losses=[],
                    losses_pos=[], losses_neg=[]):
     color_map = 'plasma'
     # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
     data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
                        input_embeddings.shape[-1]
-    fig, ax = plt.subplots(3, 1, figsize=(30, 90), sharey=False)
-
-    # make n different colors
-    colors = sns.color_palette("plasma", data_dist_matrix.shape[0])
-    if plot_edges:
-        for i in range(data_dist_matrix.shape[0]):
-            for j in range(i + 1, data_dist_matrix.shape[1]):
-                if data_dist_matrix[i, j] <= 1.01:
-                    ax[0].plot([latent_embeddings[i, 0], latent_embeddings[j, 0]],
-                               [latent_embeddings[i, 1], latent_embeddings[j, 1]], color=colors[i], linewidth=5.)
-
-    #     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
-    ax[0].axis('equal')
-    ax[0].axis('off')
-    if args.normalize == True:
-        ax[0].set_ylim(-1.09, 1.09)
-        ax[0].set_xlim(-1.09, 1.09)
-
-    entropy = softmax(input_embeddings, -1)
-    entropy = -(entropy * np.log(entropy)).sum(-1)
-    # ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=np.linalg.norm(input_embeddings, axis=-1), cmap=color_map, s=300, zorder=10   )
-    ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=entropy, cmap=color_map, s=300, zorder=10)
-
-    circle = plt.Circle((0, 0), 1., color='gray', fill=False, linewidth=10)
-    ax[0].add_patch(circle)
-
+    fig, ax = plt.subplots(2, 1, figsize=(30, 90), sharey=False)
     ax[1].plot(np.arange(len(losses)), losses, label='total')
 
     ax[1].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
@@ -72,6 +47,75 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, args=None, save=False
         plt.close()
     else:
         plt.show()
+def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, color_ENTROPY=False, shape_subject=False, args=None, save=False, plot_edges=False, losses=[],
+                   losses_pos=[], losses_neg=[]):
+    color_map = 'plasma'
+    # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
+    data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
+                       input_embeddings.shape[-1]
+    fig, ax = plt.subplots(1, 1, figsize=(30, 30), sharey=False)
+
+    if shape_subject:
+        #define n markers with n being the number of subjects
+        marskers =["*","o","^"]
+        markers = marskers[:len(subjects.unique())]
+    else:
+        markers = ["o"]*subjects.max()
+
+
+    # make n different colors
+
+    if color_ENTROPY:
+        entropy = softmax(input_embeddings, -1)
+        c = -(entropy * np.log(entropy)).sum(-1)
+    else:
+        #define c based on the CIDs
+        #consider CIDs as categorical variables and make colors based on them
+        unique_vals = np.unique(CIDs)
+        mapping = {val: idx for idx, val in enumerate(unique_vals)}
+        c = np.vectorize(mapping.get)(CIDs)
+        # print(c)
+
+    if plot_edges:
+        colors = sns.color_palette("plasma", data_dist_matrix.shape[0])
+        for i in range(data_dist_matrix.shape[0]):
+            for j in range(i + 1, data_dist_matrix.shape[1]):
+                if data_dist_matrix[i, j] <= 1.01:
+                    ax.plot([latent_embeddings[i, 0], latent_embeddings[j, 0]],
+                               [latent_embeddings[i, 1], latent_embeddings[j, 1]], color=colors[i], linewidth=5.)
+
+    #     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
+    ax.axis('equal')
+    ax.axis('off')
+    if args.normalize == True:
+        ax.set_ylim(-1.09, 1.09)
+        ax.set_xlim(-1.09, 1.09)
+
+
+    # ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=np.linalg.norm(input_embeddings, axis=-1), cmap=color_map, s=300, zorder=10   )
+    for subject in subjects.unique():
+        # if subject==3:
+        idx = subjects == subject
+        ax.scatter(latent_embeddings[idx, 0], latent_embeddings[idx, 1], c=c[idx], cmap="plasma" , s=300, zorder=10,marker=markers[subject-1])
+
+
+
+    circle = plt.Circle((0, 0), 1., color='gray', fill=False, linewidth=10)
+    ax.add_patch(circle)
+
+
+    # create a folder if it does not exist
+    if save:
+        if not os.path.exists(
+                f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+            os.makedirs(
+                f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+        plt.savefig(
+            f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}.png")
+        plt.close()
+    else:
+        plt.show()
+
 
 
 def save_embeddings(i, args, latent_embeddings, losses=[], losses_pos=[], losses_neg=[]):
