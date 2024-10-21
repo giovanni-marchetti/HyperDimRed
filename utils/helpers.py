@@ -229,12 +229,16 @@ def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg,
 
     if 'subject' in ds.columns:
         subjects = ds['subject']
+
+
+        subjects = torch.from_numpy(np.array(subjects.tolist()))
     else:
-        subjects = None
+
+        subjects = torch.from_numpy(np.ones(len(labels),dtype=int))
     CIDs = ds['CID']
     embeddings = torch.from_numpy(np.array(embeddings.tolist()))
     labels = torch.from_numpy(np.array(labels.tolist()))
-    subjects = torch.from_numpy(np.array(subjects.tolist()))
+
     CIDs = torch.from_numpy(np.array(CIDs.tolist()))
     return embeddings,labels,subjects,CIDs
 

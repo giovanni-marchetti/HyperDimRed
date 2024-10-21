@@ -84,13 +84,13 @@ if __name__ == "__main__":
     parser.add_argument('--num_epochs', type=int, default=2001)
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=0.01)
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=2)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='keller')  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='gslf')  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True)  # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian'])
     parser.add_argument('--distance_method', type=str, default='euclidean',
                         choices=['geo', 'graph', 'hamming', 'euclidean'])
-    parser.add_argument('--n_samples', type=int, default=200)
+    parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=100)  # 10
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
                                              grand_avg=False)
 
-        embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=None,n_subject=3)
         # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
     dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -244,7 +244,8 @@ if __name__ == "__main__":
             # save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
             #                 losses_neg=model.losses_neg if model_name == 'contrastive' else [],
             #                 losses_pos=model.losses_pos if model_name == 'contrastive' else [])
-            scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(),CIDs,subjects=subjects,color_ENTROPY=False, shape_subject=False,
+            scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), CIDs,labels, subjects=subjects,
+                           color_by='distance', shape_by='none',
                            save=True, args=args,
                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
                            losses_pos=model.losses_pos if model_name == 'contrastive' else [])

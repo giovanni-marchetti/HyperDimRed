@@ -17,8 +17,8 @@ plt.rcParams['agg.path.chunksize'] = 10000
 from constants import *
 
 
-def scatterplot_2d_loss(i, input_embeddings, args=None, save=False, losses=[],
-                   losses_pos=[], losses_neg=[]):
+def plot_losses(i, input_embeddings, args=None, save=False, losses=[],
+                losses_pos=[], losses_neg=[]):
     color_map = 'plasma'
     # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
     data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
@@ -39,42 +39,46 @@ def scatterplot_2d_loss(i, input_embeddings, args=None, save=False, losses=[],
     # create a folder if it does not exist
     if save:
         if not os.path.exists(
-                f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+                f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
             os.makedirs(
-                f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+                f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
         plt.savefig(
-            f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}.png")
+            f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.png")
         plt.close()
     else:
         plt.show()
-def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, color_ENTROPY=False, shape_subject=False, args=None, save=False, plot_edges=False, losses=[],
+def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subjects=None, color_by='entropy', shape_by='none', args=None, save=False, plot_edges=False, losses=[],
                    losses_pos=[], losses_neg=[]):
     color_map = 'plasma'
-    # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
+    #
     data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
                        input_embeddings.shape[-1]
     fig, ax = plt.subplots(1, 1, figsize=(30, 30), sharey=False)
-
-    if shape_subject:
-        #define n markers with n being the number of subjects
-        marskers =["*","o","^"]
-        markers = marskers[:len(subjects.unique())]
-    else:
+    markers = ["o", "s", "D", "P", "X", "v", ">", "<", "^", "d", "p", "*", "h", "H", "+", "x", "|", "_"]
+    if shape_by=='subject':
+        groups = subjects.unique()
+        selected_groups = subjects
+    elif shape_by=='descriptor':
+        groups = np.arange(labels.shape[1])
+        selected_groups = [np.argmax(label[2:]) + 2 for label in labels]
+    elif shape_by=='none':
         markers = ["o"]*subjects.max()
+    else:
+        raise ValueError('shape_by not recognized')
 
 
-    # make n different colors
-
-    if color_ENTROPY:
+    if color_by=='entropy':
         entropy = softmax(input_embeddings, -1)
         c = -(entropy * np.log(entropy)).sum(-1)
-    else:
-        #define c based on the CIDs
-        #consider CIDs as categorical variables and make colors based on them
+    elif color_by=='cid':
         unique_vals = np.unique(CIDs)
         mapping = {val: idx for idx, val in enumerate(unique_vals)}
         c = np.vectorize(mapping.get)(CIDs)
-        # print(c)
+    elif color_by=='distance':
+        #todo
+        c = torch.norm(latent_embeddings, dim=-1)
+    else:
+        raise ValueError('color_by not recognized')
 
     if plot_edges:
         colors = sns.color_palette("plasma", data_dist_matrix.shape[0])
@@ -84,7 +88,6 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, c
                     ax.plot([latent_embeddings[i, 0], latent_embeddings[j, 0]],
                                [latent_embeddings[i, 1], latent_embeddings[j, 1]], color=colors[i], linewidth=5.)
 
-    #     ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=latent_embeddings_norm, cmap=color_map)
     ax.axis('equal')
     ax.axis('off')
     if args.normalize == True:
@@ -92,11 +95,10 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, c
         ax.set_xlim(-1.09, 1.09)
 
 
-    # ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=np.linalg.norm(input_embeddings, axis=-1), cmap=color_map, s=300, zorder=10   )
-    for subject in subjects.unique():
-        # if subject==3:
-        idx = subjects == subject
-        ax.scatter(latent_embeddings[idx, 0], latent_embeddings[idx, 1], c=c[idx], cmap="plasma" , s=300, zorder=10,marker=markers[subject-1])
+
+    for group in groups:
+        idx = selected_groups == group
+        ax.scatter(latent_embeddings[idx, 0], latent_embeddings[idx, 1], c=c[idx], cmap="plasma" , s=300, zorder=10,marker=markers[group-1],vmin = c.min(), vmax = c.max())
 
 
 
@@ -107,11 +109,11 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, c
     # create a folder if it does not exist
     if save:
         if not os.path.exists(
-                f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+                f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
             os.makedirs(
-                f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+                f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
         plt.savefig(
-            f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}.png")
+            f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_embeddings.png")
         plt.close()
     else:
         plt.show()
@@ -120,21 +122,21 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, c
 
 def save_embeddings(i, args, latent_embeddings, losses=[], losses_pos=[], losses_neg=[]):
     if not os.path.exists(
-            f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+            f"results/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
         os.makedirs(
-            f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+            f"results/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
 
     np.save(
-        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_embeddings.npy",
+        f"results/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_embeddings.npy",
         latent_embeddings)
     np.save(
-        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.npy",
+        f"results/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.npy",
         losses)
     np.save(
-        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossespos.npy",
+        f"results/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossespos.npy",
         losses_pos)
     np.save(
-        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossesneg.npy",
+        f"results/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossesneg.npy",
         losses_neg)
 
 
