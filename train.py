@@ -45,43 +45,14 @@ def get_tree_data(depth, dtype=np.float32):
 ###
 
 
-def select_subjects(subjects, embeddings, labels, CIDs,subjects_ids,subject_id=None,n_subject=None):
-    if subject_id is not None and n_subject is not None:
-        raise ValueError('You can only provide either subject_id or n_subject')
-    elif subject_id is not None:
-        if type(subject_id) == int:
 
-
-            embeddings = embeddings[subjects == subject_id]
-            labels = labels[subjects == subject_id]
-            CIDs = CIDs[subjects == subject_id]
-            subjects = subjects[subjects == subject_id]
-        else:
-            embeddings = embeddings[np.isin(subjects, subject_id)]
-            labels = labels[np.isin(subjects, subject_id)]
-            CIDs = CIDs[np.isin(subjects, subject_id)]
-            subjects = subjects[np.isin(subjects, subject_id)]
-
-    elif n_subject is not None:
-        # randomize subjects_id and select n_subjects
-        subjects_ids = np.random.permutation(subjects_ids)
-        n_subjects = subjects_ids[:n_subject]
-        embeddings = embeddings[np.isin(subjects, n_subjects)]
-        labels = labels[np.isin(subjects, n_subjects)]
-        CIDs = CIDs[np.isin(subjects, n_subjects)]
-        subjects = subjects[np.isin(subjects, n_subjects)]
-    else:
-        raise ValueError('Please provide either subject_id or n_subject')
-
-
-    return embeddings, labels, CIDs, subjects
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--representation_name', type=str, default='molformer')
-    parser.add_argument('--batch_size', type=int, default=28)
+    parser.add_argument('--batch_size', type=int, default=200)
     parser.add_argument('--num_epochs', type=int, default=100)
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
@@ -91,19 +62,19 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='ravia')  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"gslf"," ravia","keller","sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True)  # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian'])
-    parser.add_argument('--distance_method', type=str, default='similarity',
+    parser.add_argument('--distance_method', type=str, default='euclidean',
                         choices=['geo', 'graph', 'hamming', 'euclidean','similarity'])
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=100)  # 10
-    parser.add_argument('--n_neighbors', type=int, default=3)
+    parser.add_argument('--n_neighbors', type=int, default=10)
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -158,6 +129,7 @@ if __name__ == "__main__":
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
                                              grand_avg=False)
 
+
     elif dataset_name in ['ravia']:
         data_dist_matrix, intensity_labels = prepare_ravia_or_snitz(
             dataset=f'embeddings/{representation_name}/curated_ravia2020_behavior_similarity_intensity.csv',
@@ -168,6 +140,7 @@ if __name__ == "__main__":
         CIDs = None
         subjects = np.zeros(data_dist_matrix.shape[0], dtype=int)
         data_dist_matrix = torch.tensor(data_dist_matrix)
+        batch_size= 28
     else:
         raise ValueError('Dataset not recognized')
 
@@ -175,9 +148,12 @@ if __name__ == "__main__":
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 
-        #select a subset of subjects if needed
-        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=None,n_subject=3)
-        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+    #select a subset of subjects if needed
+    # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=None,n_subject=3)
+    # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+
+    #select a subset of molecules based on the labels if needed
+    embeddings, labels, CIDs, subjects = select_molecules(subjects, embeddings, labels, CIDs,selected_labels=["bergamot", "grapefruit", "lemon", "orange", "black currant", "raspberry", "strawberry", "banana", "coconut", "pineapple","tropical","berry", "citrus","fruity"] )
 
 
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
@@ -190,7 +166,7 @@ if __name__ == "__main__":
         model = MDS(len(dataset), latent_dim,
                     euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance)
     elif model_name == 'contrastive':
-        model = Contrastive(28, latent_dim,
+        model = Contrastive(len(dataset), latent_dim,
                             euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance, distr=distr)
     else:
         raise ValueError('Model not recognized')
@@ -230,7 +206,7 @@ if __name__ == "__main__":
                     data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
                 data_dist_matrix = torch.tensor(data_dist_matrix)
             elif distance_method == 'euclidean':
-                data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
+                data_dist_matrix = scipy.spatial.distance.cdist(embeddings, embeddings, metric='euclidean')
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=n_neighbors,

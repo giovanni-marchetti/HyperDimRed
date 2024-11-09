@@ -347,3 +347,53 @@ def prepare_ravia_similarity_mols_mix_on_representations(input_file_embeddings, 
 
 
     return df_ravia_mols, df_ravia_mols_embeddings_original, df_ravia_mols_embeddings, df_ravia_mols_embeddings_zscored
+
+
+def select_subjects(subjects, embeddings, labels, CIDs, subjects_ids, subject_id=None, n_subject=None):
+    if subject_id is not None and n_subject is not None:
+        raise ValueError('You can only provide either subject_id or n_subject')
+    elif subject_id is not None:
+        if type(subject_id) == int:
+
+            embeddings = embeddings[subjects == subject_id]
+            labels = labels[subjects == subject_id]
+            CIDs = CIDs[subjects == subject_id]
+            subjects = subjects[subjects == subject_id]
+        else:
+            embeddings = embeddings[np.isin(subjects, subject_id)]
+            labels = labels[np.isin(subjects, subject_id)]
+            CIDs = CIDs[np.isin(subjects, subject_id)]
+            subjects = subjects[np.isin(subjects, subject_id)]
+
+    elif n_subject is not None:
+        # randomize subjects_id and select n_subjects
+        subjects_ids = np.random.permutation(subjects_ids)
+        n_subjects = subjects_ids[:n_subject]
+        embeddings = embeddings[np.isin(subjects, n_subjects)]
+        labels = labels[np.isin(subjects, n_subjects)]
+        CIDs = CIDs[np.isin(subjects, n_subjects)]
+        subjects = subjects[np.isin(subjects, n_subjects)]
+    else:
+        raise ValueError('Please provide either subject_id or n_subject')
+
+    return embeddings, labels, CIDs, subjects
+
+
+def select_molecules(subjects, embeddings, labels, CIDs, selected_labels):
+
+
+
+    #convert torch tensors to numpy arrays
+    # labels = labels.numpy()
+    arrs = []
+    # for ar in labels:
+    #     arrs.append(np.asarray(ar))
+    # labels = np.asarray(arrs)
+
+    indices = [gs_lf_tasks.index(label) for label in selected_labels]
+    filtered_labels = labels[torch.any(labels[:, indices], axis=1)]
+    filtered_subjects = subjects[torch.any(labels[:, indices], axis=1)]
+    filtered_embeddings = embeddings[torch.any(labels[:, indices], axis=1)]
+    filtered_CIDs = CIDs[torch.any(labels[:, indices], axis=1)]
+
+    return filtered_embeddings, filtered_labels, filtered_CIDs, filtered_subjects
