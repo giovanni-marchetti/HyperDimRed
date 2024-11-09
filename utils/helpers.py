@@ -16,7 +16,8 @@ def set_seeds(seed):
     random.seed(seed)
 
 def prepare_dataset(ds):
-    ds['y'] = ds['y'].apply(ast.literal_eval)
+    if 'y' in ds.columns:
+        ds['y'] = ds['y'].apply(ast.literal_eval)
     ds['embeddings'] = ds['embeddings'].apply(ast.literal_eval)
     # ds['CID'] = ds['CID'].apply(ast.literal_eval)
     # if 'subject' in ds.columns:
@@ -223,9 +224,12 @@ def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg,
         ds = grand_average(ds, descriptors)
     else:
         pass
-    # self.labels = self.ds['y']
-    labels = ds['y']
     embeddings = ds['embeddings']
+    if 'y' in ds.columns:
+        labels = ds['y']
+    else:
+        labels = torch.from_numpy(np.ones(len(embeddings.tolist()),dtype=int))
+
 
     if 'subject' in ds.columns:
         subjects = ds['subject']
@@ -242,3 +246,104 @@ def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg,
     CIDs = torch.from_numpy(np.array(CIDs.tolist()))
     return embeddings,labels,subjects,CIDs
 
+
+def prepare_ravia_or_snitz(dataset, base_path='/local_storage/datasets/farzaneh/alignment_olfaction_datasets/'):
+    # generate docstrings for this function with a brief description of the function and the parameters and return values
+    """
+    Prepare the similarity dataset for the alignment task
+    :param base_path:   (str) path to the base directory where the datasets are stored
+    :return:         (tuple) a tuple containing the original  dataset, the mean  dataset, and the pivoted mean  dataset
+    """
+
+    def make_symmetric(matrix):
+        return matrix.combine_first(matrix.T)
+
+    input_file = base_path + dataset
+    df_ravia_original = pd.read_csv(input_file)
+    df_ravia = df_ravia_original.copy()
+
+    features = ['CID Stimulus 1', 'CID Stimulus 2', 'Stimulus 1-IsomericSMILES', 'Stimulus 2-IsomericSMILES',
+                'Stimulus 1-nonStereoSMILES', 'Stimulus 2-nonStereoSMILES', 'RatedSimilarity', 'Intensity 1',
+                'Intensity 2']
+    agg_functions = {}
+    features_all = features
+    df_ravia = df_ravia.reindex(columns=features_all)
+
+    agg_functions['RatedSimilarity'] = 'mean'
+
+    df_ravia = df_ravia[features_all]
+    df_ravia_copy = df_ravia.copy()
+    df_ravia_copy = df_ravia_copy.rename(columns={'Stimulus 1-IsomericSMILES': 'Stimulus 2-IsomericSMILES',
+                                                  'Stimulus 2-IsomericSMILES': 'Stimulus 1-IsomericSMILES',
+                                                  'CID Stimulus 1': 'CID Stimulus 2',
+                                                  'CID Stimulus 2': 'CID Stimulus 1',
+                                                  'Stimulus 1-nonStereoSMILES': 'Stimulus 2-nonStereoSMILES',
+                                                  'Stimulus 2-nonStereoSMILES': 'Stimulus 1-nonStereoSMILES',
+                                                  'Intensity 1': 'Intensity 2',
+                                                  'Intensity 2': 'Intensity 1'
+                                                  })
+    df_ravia_copy['RatedSimilarity'] = np.nan
+    df_ravia_concatenated = pd.concat([df_ravia, df_ravia_copy], ignore_index=True, axis=0).reset_index(drop=True)
+    df_ravia = df_ravia_concatenated.drop_duplicates(
+        ['CID Stimulus 1', 'CID Stimulus 2', 'Stimulus 1-IsomericSMILES', 'Stimulus 2-IsomericSMILES',
+         'Stimulus 1-nonStereoSMILES', 'Stimulus 2-nonStereoSMILES', 'Intensity 1', 'Intensity 2'])
+
+    df_ravia_mean = df_ravia.groupby(
+        ['CID Stimulus 1', 'CID Stimulus 2', 'Stimulus 1-IsomericSMILES', 'Stimulus 2-IsomericSMILES',
+         'Stimulus 1-nonStereoSMILES', 'Stimulus 2-nonStereoSMILES', 'Intensity 1', 'Intensity 2']).agg(
+        agg_functions).reset_index()
+
+    df_ravia_mean_pivoted = df_ravia_mean.pivot(index='CID Stimulus 1', columns='CID Stimulus 2',
+                                                values='RatedSimilarity')
+
+    df_ravia_mean_pivoted = df_ravia_mean_pivoted.reindex(sorted(df_ravia_mean_pivoted.columns), axis=1)
+    df_ravia_mean_pivoted = df_ravia_mean_pivoted.sort_index(ascending=True)
+    df_ravia_mean_pivoted = make_symmetric(df_ravia_mean_pivoted)
+
+    # fill all nans with -1
+    df_ravia_mean_pivoted = df_ravia_mean_pivoted.fillna(1000)
+
+    # create a table with the intensity and CID columns for each stimulus
+    df_ravia = df_ravia.reindex(columns=['CID Stimulus 1', 'CID Stimulus 2', 'Intensity 1', 'Intensity 2'])
+    df_ravia_intensity = df_ravia[['CID Stimulus 1', 'CID Stimulus 2', 'Intensity 1', 'Intensity 2']]
+
+    # stack CID Stimulus 1 and CID Stimulus 2 columns as a CID column and  Intensity 1 and Intensity 2 columns as an Intensity column
+    df_ravia_intensity = pd.concat([df_ravia_intensity[['CID Stimulus 1', 'Intensity 1']].rename(
+        columns={'CID Stimulus 1': 'CID', 'Intensity 1': 'Intensity'}),
+                                    df_ravia_intensity[['CID Stimulus 2', 'Intensity 2']].rename(
+                                        columns={'CID Stimulus 2': 'CID', 'Intensity 2': 'Intensity'})],
+                                   ignore_index=True)
+    df_ravia_intensity = df_ravia_intensity.drop_duplicates()
+    df_ravia_intensity['Intensity'] = df_ravia_intensity['Intensity'].apply(lambda x: x.replace(';', ','))
+
+    df_ravia_intensity['Intensity'] = df_ravia_intensity['Intensity'].apply(ast.literal_eval)
+    df_ravia_intensity = df_ravia_intensity['Intensity'].to_numpy()
+
+    return  df_ravia_mean_pivoted.to_numpy(), df_ravia_intensity
+
+
+def prepare_ravia_similarity_mols_mix_on_representations(input_file_embeddings, df_ravia_similarity_mean,
+                                                         modeldeepchem_gslf=None, mixing_type='sum', sep=';', start='0',
+                                                         end='255'):
+    df_ravia_mols = create_pairs(df_ravia_similarity_mean)
+
+    df_embeddigs = pd.read_csv(input_file_embeddings)[['embeddings', 'CID']]
+    df_embeddigs['embeddings'] = df_embeddigs['embeddings'].apply(lambda x: np.array(eval(x)))
+
+    if mixing_type == 'sum':
+
+        df_ravia_mols['Stimulus Embedding Sum'] = df_ravia_mols['CID'].apply(
+            lambda x: sum_embeddings(list(map(int, x.split(sep))), df_embeddigs))
+    elif mixing_type == 'average':
+        df_ravia_mols['Stimulus Embedding Sum'] = df_ravia_mols['CID'].apply(
+            lambda x: average_embeddings(list(map(int, x.split(sep))), df_embeddigs))
+
+    df_mols_embeddings_original = [
+        torch.from_numpy(np.asarray(df_ravia_mols['Stimulus Embedding Sum'].values.tolist()))]
+
+    df_ravia_mols_embeddings_original, df_ravia_mols_embeddings, df_ravia_mols_embeddings_zscored = prepare_mols_helper_mixture(
+        df_mols_embeddings_original, df_ravia_mols, start, end, modeldeepchem_gslf)
+
+
+
+    return df_ravia_mols, df_ravia_mols_embeddings_original, df_ravia_mols_embeddings, df_ravia_mols_embeddings_zscored
