@@ -72,23 +72,23 @@ if __name__ == "__main__":
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.001)
     # parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--seed', type=int, default=5)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"gslf"," ravia","keller","sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='ravia' , choices={"gslf"," ravia","keller","sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True)  # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare'])
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare'])
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian'])
-    parser.add_argument('--distance_method', type=str, default='euclidean',
+    parser.add_argument('--distance_method', type=str, default='similarity',
                         choices=['geo', 'graph', 'hamming', 'euclidean','similarity'])
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=100)  # 0.1
-    parser.add_argument('--n_neighbors', type=int, default=10) # 20
+    parser.add_argument('--temperature', type=float, default=100)  # 0.1 #100
+    parser.add_argument('--n_neighbors', type=int, default=10) # 20 #10
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
 
     #select a subset of molecules based on the labels if needed
-    embeddings, labels, CIDs, subjects = select_molecules(subjects, embeddings, labels, CIDs,selected_labels=["bergamot", "grapefruit", "lemon", "orange", "black currant", "raspberry", "strawberry", "banana", "coconut", "pineapple","tropical","berry", "citrus","fruity"] )
+    #embeddings, labels, CIDs, subjects = select_molecules(subjects, embeddings, labels, CIDs,selected_labels=["bergamot", "grapefruit", "lemon", "orange", "black currant", "raspberry", "strawberry", "banana", "coconut", "pineapple","tropical","berry", "citrus","fruity"] )
 
 
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
@@ -201,6 +201,20 @@ if __name__ == "__main__":
     # wandb.watch(model)
 
     correlation_coefficients = []
+
+    ent_array = np.zeros(data_dist_matrix.shape[0])
+    for j, arr in enumerate(intensity_labels):
+        arr = np.array(arr)
+        entropy = arr / arr.sum()
+        c = -(entropy * np.log(entropy)).sum(-1)
+        ent_array[j] = c
+
+
+    c = ent_array
+    radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+    corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+    correlation_coefficients.append(corr)  # Store the correlation coefficient
+    print(correlation_coefficients)
 
     for i in range(num_epochs):
         total_loss = 0
@@ -249,7 +263,9 @@ if __name__ == "__main__":
                 # plt.show()
                 
 
-                data_dist_matrix = scipy.spatial.distance.cdist(embeddings, embeddings, metric='euclidean')
+                #data_dist_matrix = scipy.spatial.distance.cdist(embeddings, embeddings, metric='euclidean')
+                #data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='euclidean')
+                data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=n_neighbors,
@@ -259,12 +275,7 @@ if __name__ == "__main__":
                     data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=n_neighbors,
                                                              mode='connectivity', include_self=False).toarray()
                 idx = list(range(data_dist_matrix.shape[0]))
-                ent_array = np.zeros(data_dist_matrix.shape[0])
-                for i, arr in enumerate(intensity_labels):
-                    arr = np.array(arr)
-                    entropy = arr / arr.sum()
-                    c = -(entropy * np.log(entropy)).sum(-1)
-                    ent_array[i] = c
+
 
 
             else:
@@ -288,18 +299,37 @@ if __name__ == "__main__":
             #                 losses_neg=model.losses_neg if model_name == 'contrastive' else [],
             #                 losses_pos=model.losses_pos if model_name == 'contrastive' else [])
             # scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), CIDs,labels, subjects=subjects,
+            
+            # For ravia for example, with color_by='color'
             scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
                                           ent_array, CIDs, labels, subjects=subjects,
                            color_by='color', shape_by='none',
                            save=True, args=args,
                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
                            losses_pos=model.losses_pos if model_name == 'contrastive' else [])
-            
-            entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
-            c = -(entropy * np.log(entropy)).sum(-1)
+
+            # # For sagar for example, with color_by='entropy'
+            # scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+            #                               dataset.labels.detach().cpu().numpy(), CIDs, labels, subjects=subjects,
+            #                color_by='entropy', shape_by='none',
+            #                save=True, args=args,
+            #                losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+            #                losses_pos=model.losses_pos if model_name == 'contrastive' else [])            
+
+            # # For sagar for example, print correlation coefficient between entropy and hyperbolic radius:
+            # entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
+            # c = -(entropy * np.log(entropy)).sum(-1)
+            # radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+            # corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+            # correlation_coefficients.append(corr)  # Store the correlation coefficient
+            # print(correlation_coefficients)
+
+            # For ravia for example, print correlation coefficient between entropy and hyperbolic radius:
+            c = ent_array
             radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
             corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
             correlation_coefficients.append(corr)  # Store the correlation coefficient
+            print(correlation_coefficients)
 
     # # After the training loop, plot the correlation coefficient vs. epochs
     # plt.figure(figsize=(10, 6))
@@ -312,7 +342,7 @@ if __name__ == "__main__":
     # # Save the correlation coefficient plot
     # plt.savefig('figs2/correlation_coefficient_vs_epochs.png')
     # plt.close() 
-            print(correlation_coefficients)
+            
             
             # scatterplot_2d_loss(i, model.embeddings.detach(), save=True, args=args,
             #                losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
