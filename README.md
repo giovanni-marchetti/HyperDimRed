@@ -11,5 +11,5 @@ A Python library for hyperbolic dimensionality reduction
 - color: is a pre-constructed color for entropy based on intensity, relevant for mixture of odors (ravia dataset)
 
 *shape_by* parameter:
-- subject: gives different shapes to the dots depending on the subject
-- descriptor: gives different shapes to the dots corresponding to the maximal value of its descriptors (i.e. the most graded perception odor)
+- subject: gives different shapes to the dots depending on the subject (relevant for keller and sagar datasets)
+- descriptor: gives different shapes to the dots corresponding to the maximal value of its descriptors (i.e. the most graded perception odor), relevant for continuous values (keller and sagar datasets)
