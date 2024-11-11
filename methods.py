@@ -90,7 +90,7 @@ class Contrastive(Embedder):
         # pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
 
         # temp_pos = 1. #1/temperature
-
+        #todo there is a bug here: IndexError: The shape of the mask [2334, 2334] at index 0 does not match the shape of the indexed tensor [200, 200] at index 0
         pos_loss = ((latent_dist_matrix[positive_pairs] - float(metricity) * data_dist_matrix[
             positive_pairs]) ** 2).sum() / (temperature)  # with metricity injected
 
