@@ -1,4 +1,4 @@
-#scattorplot of 2d visualizations
+# scattorplot of 2d visualizations
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn import manifold
@@ -11,8 +11,9 @@ import scipy
 import torch
 import os
 import matplotlib
+from distances import poincare_distance
 plt.rcParams["font.size"] = 45
-plt.rcParams['agg.path.chunksize'] = 10000  
+plt.rcParams['agg.path.chunksize'] = 10000
 
 from constants import *
 
@@ -47,6 +48,7 @@ def scatterplot_2d_loss(i, input_embeddings, args=None, save=False, losses=[],
         plt.close()
     else:
         plt.show()
+
 def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, color_ENTROPY=False, shape_subject=False, args=None, save=False, plot_edges=False, losses=[],
                    losses_pos=[], losses_neg=[]):
     color_map = 'plasma'
@@ -76,6 +78,42 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, c
         c = np.vectorize(mapping.get)(CIDs)
         # print(c)
 
+
+    # radius = np.sqrt(np.sum(np.square(latent_embeddings), axis=1))
+    radius = poincare_distance(torch.from_numpy(latent_embeddings), torch.zeros((1, 2)))
+    corr = np.corrcoef(radius, c)
+    #print('corr', corr)
+
+    # Plotting the correlation
+    plt.figure(figsize=(10, 6))
+    plt.scatter(radius, c, color='#6a0dad', alpha=0.7, s=50)  # Scatter plot # edgecolor='k'
+
+    # Calculate the line of best fit
+    slope, intercept = np.polyfit(radius, c, 1)  # Linear regression
+    line = slope * radius + intercept  # Calculate the y values for the line
+
+    # Plot the regression line
+    plt.plot(radius, line, color='#ffbf00', linewidth=2)  # Add the line to the plot
+
+    plt.xlabel('Hyperbolic radius', fontsize=30)
+    plt.ylabel('Entropy', fontsize=30)
+   # plt.title('Correlation between Radius and Entropy', fontsize=16)  # Added title
+    #plt.grid(True)
+    #plt.legend()  # Show legend
+    #plt.tight_layout()  # Adjust layout for better spacing
+
+    plt.xticks([])
+    plt.yticks([])
+
+    #plt.axis('off')
+
+    # Save the figure with 'corr' in the filename
+    plt.savefig(f'figs2/{i}_corr.png')  # Changed filename to include 'corr'
+    plt.close()  # Close the plot to avoid display if running in a script
+
+
+
+
     if plot_edges:
         colors = sns.color_palette("plasma", data_dist_matrix.shape[0])
         for i in range(data_dist_matrix.shape[0]):
@@ -94,9 +132,9 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs,subjects=None, c
 
     # ax[0].scatter(latent_embeddings[:, 0], latent_embeddings[:, 1], c=np.linalg.norm(input_embeddings, axis=-1), cmap=color_map, s=300, zorder=10   )
     for subject in subjects.unique():
-        # if subject==3:
-        idx = subjects == subject
-        ax.scatter(latent_embeddings[idx, 0], latent_embeddings[idx, 1], c=c[idx], cmap="plasma" , s=300, zorder=10,marker=markers[subject-1])
+        if subject==3:
+            idx = subjects == subject
+            ax.scatter(latent_embeddings[idx, 0], latent_embeddings[idx, 1], c=c[idx], cmap="plasma" , s=300, zorder=10,marker=markers[subject-1])
 
 
 
@@ -130,23 +168,25 @@ def save_embeddings(i, args, latent_embeddings, losses=[], losses_pos=[], losses
     np.save(
         f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.npy",
         losses)
-    np.save( f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossespos.npy",
+    np.save(
+        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossespos.npy",
         losses_pos)
-    np.save( f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossesneg.npy",
+    np.save(
+        f"results/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossesneg.npy",
         losses_neg)
 
 
-
-def scatterplot_2d_gslf(latent_embeddings,input_embeddings,labels, color_map='viridis', args=None,losses=[],losses_pos=[],losses_neg=[]):
-
+def scatterplot_2d_gslf(latent_embeddings, input_embeddings, labels, color_map='viridis', args=None, losses=[],
+                        losses_pos=[], losses_neg=[]):
     type1 = {'floral': '#F3F1F7', 'muguet': '#FAD7E6', 'lavender': '#8883BE', 'jasmin': '#BD81B7'}
     type2 = {'meaty': '#F5EBE8', 'savory': '#FBB360', 'beefy': '#7B382A', 'roasted': '#F7A69E'}
     type3 = {'ethereal': '#F2F6EC', 'cognac': '#BCE2D2', 'fermented': '#79944F', 'alcoholic': '#C2DA8F'}
     types = [type1, type2, type3]
 
-    data_dist_matrix=scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming')*input_embeddings.shape[-1]
+    data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
+                       input_embeddings.shape[-1]
     latent_embeddings = latent_embeddings.detach().cpu().numpy()
-    fig,ax = plt.subplots(3,1,figsize=(10,30),sharey=False)
+    fig, ax = plt.subplots(3, 1, figsize=(10, 30), sharey=False)
 
     # make n different colors
     # colors = sns.color_palette("hsv", data_dist_matrix.shape[0])
@@ -159,31 +199,35 @@ def scatterplot_2d_gslf(latent_embeddings,input_embeddings,labels, color_map='vi
     labels = labels.detach().cpu().numpy()
     for type in types:
         for key in type.keys():
-                #where in gs_lf_tasks is the key
-            key_idx =gs_lf_tasks.index(key)
-            #choose the indices of the labels that are 1 in the key_idx
-            embedding_idx = np.where(labels[:,key_idx]==1)[0]
+            # where in gs_lf_tasks is the key
+            key_idx = gs_lf_tasks.index(key)
+            # choose the indices of the labels that are 1 in the key_idx
+            embedding_idx = np.where(labels[:, key_idx] == 1)[0]
             # idx = labels.index(key)
-            ax[0].scatter(latent_embeddings[embedding_idx, 0], latent_embeddings[embedding_idx, 1], c=type[key], label=key)
+            ax[0].scatter(latent_embeddings[embedding_idx, 0], latent_embeddings[embedding_idx, 1], c=type[key],
+                          label=key)
 
+    ax[1].plot(np.arange(len(losses)), losses, label='total')
 
-    ax[1].plot(np.arange(len(losses)), losses,label='total')
-
-    ax[1].plot(np.arange(len(losses_pos)), losses_pos,label='positive')
-    ax[2].plot(np.arange(len(losses_neg)), losses_neg,label='negative')
+    ax[1].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
+    ax[2].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
     ax[0].set_ylim(-1.09, 1.09)
     ax[0].set_xlim(-1.09, 1.09)
 
     fig.subplots_adjust(hspace=0.3)
-    #showing the legend
+    # showing the legend
     ax[1].legend()
     ax[2].legend()
-    plt.title(f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
+    plt.title(
+        f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
 
-    #create a folder if it does not exist
-    if not os.path.exists(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
-        os.makedirs(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
-    plt.savefig(f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
+    # create a folder if it does not exist
+    if not os.path.exists(
+            f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+        os.makedirs(
+            f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+    plt.savefig(
+        f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
 
     plt.close()
 
@@ -191,10 +235,7 @@ def scatterplot_2d_gslf(latent_embeddings,input_embeddings,labels, color_map='vi
 #
 
 
-
-
-
-def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3,reduction_method = None,perplexity=None):
+def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3, reduction_method=None, perplexity=None):
     sns.set_style("ticks")
     sns.despine()
 
@@ -208,12 +249,12 @@ def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3,redu
     # Assuming you have your features in the 'features' array
     if reduction_method == 'PCA':
         pca = PCA(n_components=2,
-              iterated_power=10)  # You can choose the number of components you want (e.g., 2 for 2D visualization)
+                  iterated_power=10)  # You can choose the number of components you want (e.g., 2 for 2D visualization)
         reduced_features = pca.fit_transform(pom_embeds)  # try different variations
         variance_explained = pca.explained_variance_ratio_
         variance_pc1 = variance_explained[0]
         variance_pc2 = variance_explained[1]
-        print(variance_pc1,variance_pc2)
+        print(variance_pc1, variance_pc2)
 
     elif reduction_method == 'tsne':
         tsne = manifold.TSNE(
@@ -225,7 +266,8 @@ def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3,redu
         )
         reduced_features = tsne.fit_transform(pom_embeds)
     elif reduction_method == 'UMAP':
-        reduced_features = umap.UMAP(n_components=2, n_neighbors=perplexity, min_dist=0.0, metric='euclidean').fit_transform(X=pom_embeds)
+        reduced_features = umap.UMAP(n_components=2, n_neighbors=perplexity, min_dist=0.0,
+                                     metric='euclidean').fit_transform(X=pom_embeds)
     elif reduction_method is None:
         reduced_features = pom_embeds
     else:
@@ -240,7 +282,8 @@ def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3,redu
     x_grid, y_grid = np.meshgrid(np.linspace(reduced_features[:, 0].min(), reduced_features[:, 0].max(), 500),
                                  np.linspace(reduced_features[:, 1].min(), reduced_features[:, 1].max(), 500))
     grid_points = np.vstack([x_grid.ravel(), y_grid.ravel()])
-    print(reduced_features[:, 0].min(), reduced_features[:, 0].max(),reduced_features[:, 1].min(), reduced_features[:, 1].max())
+    print(reduced_features[:, 0].min(), reduced_features[:, 0].max(), reduced_features[:, 1].min(),
+          reduced_features[:, 1].max())
 
     def get_kde_values(label):
         plot_idx = required_desc.index(label)
@@ -281,10 +324,9 @@ def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3,redu
     # plt.show()
     # png_file = os.path.join(dir, 'pom_frame.png')
     # plt.savefig(png_file)
-    plt.savefig("figs/islands/realign_islands_" + title+"_" + reduction_method+"_" +str(perplexity) +".svg")
-    plt.savefig("figs/islands/realign_islands_" + title+"_" + reduction_method+"_" +str(perplexity) +".pdf")
-    plt.savefig("figs/islands/realign_islands_" + title+"_" + reduction_method+"_" +str(perplexity) +".jpg")
-
+    plt.savefig("figs/islands/realign_islands_" + title + "_" + reduction_method + "_" + str(perplexity) + ".svg")
+    plt.savefig("figs/islands/realign_islands_" + title + "_" + reduction_method + "_" + str(perplexity) + ".pdf")
+    plt.savefig("figs/islands/realign_islands_" + title + "_" + reduction_method + "_" + str(perplexity) + ".jpg")
 
     # plt.show()
     # plt.close()
