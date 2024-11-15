@@ -49,7 +49,7 @@ def plot_losses(i, input_embeddings, args=None, save=False, losses=[],
     else:
         plt.show()
 def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subjects=None, color_by='entropy', shape_by='none', args=None, save=False, plot_edges=False, losses=[],
-                   losses_pos=[], losses_neg=[]):
+                   losses_pos=[], losses_neg=[], hyperbolic_boundary=True):
     color_map = 'plasma'
     #
     # data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
@@ -69,7 +69,9 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
     else:
         raise ValueError('shape_by not recognized')
 
-    if color_by=='entropy':
+    if color_by=='input_norm':
+        c = torch.norm(input_embeddings, dim=-1)
+    elif color_by=='entropy':
         entropy = softmax(input_embeddings, -1)
         c = -(entropy * np.log(entropy)).sum(-1)
     elif color_by=='cid':
@@ -154,9 +156,9 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
 
 
 
-
-    circle = plt.Circle((0, 0), 1., color='gray', fill=False, linewidth=10)
-    ax.add_patch(circle)
+    if hyperbolic_boundary:
+        circle = plt.Circle((0, 0), 1., color='gray', fill=False, linewidth=10)
+        ax.add_patch(circle)
 
 
     # create a folder if it does not exist
