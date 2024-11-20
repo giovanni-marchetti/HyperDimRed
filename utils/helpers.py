@@ -379,21 +379,98 @@ def select_subjects(subjects, embeddings, labels, CIDs, subjects_ids, subject_id
     return embeddings, labels, CIDs, subjects
 
 
-def select_molecules(subjects, embeddings, labels, CIDs, selected_labels):
+# def select_molecules(subjects, embeddings, labels, CIDs, selected_labels):
+#
+#
+#
+#     #convert torch tensors to numpy arrays
+#     # labels = labels.numpy()
+#     arrs = []
+#     # for ar in labels:
+#     #     arrs.append(np.asarray(ar))
+#     # labels = np.asarray(arrs)
+#
+#     indices = [gs_lf_tasks.index(label) for label in selected_labels]
+#     filtered_labels = labels[torch.any(labels[:, indices], axis=1)]
+#     filtered_subjects = subjects[torch.any(labels[:, indices], axis=1)]
+#     filtered_embeddings = embeddings[torch.any(labels[:, indices], axis=1)]
+#     filtered_CIDs = CIDs[torch.any(labels[:, indices], axis=1)]
+#
+#     return filtered_embeddings, filtered_labels, filtered_CIDs, filtered_subjects
 
 
+def select_molecules(labels, selected_labels, *arrays ):
+    # Convert additional arrays to numpy if they are torch tensors
+    converted_arrays = [
+         arr for arr in arrays
+    ]
 
-    #convert torch tensors to numpy arrays
-    # labels = labels.numpy()
-    arrs = []
-    # for ar in labels:
-    #     arrs.append(np.asarray(ar))
-    # labels = np.asarray(arrs)
 
+    # Get the indices of the selected labels
     indices = [gs_lf_tasks.index(label) for label in selected_labels]
-    filtered_labels = labels[torch.any(labels[:, indices], axis=1)]
-    filtered_subjects = subjects[torch.any(labels[:, indices], axis=1)]
-    filtered_embeddings = embeddings[torch.any(labels[:, indices], axis=1)]
-    filtered_CIDs = CIDs[torch.any(labels[:, indices], axis=1)]
 
-    return filtered_embeddings, filtered_labels, filtered_CIDs, filtered_subjects
+    # Filter rows where any of the selected labels are present
+    filter_mask = torch.any(labels[:, indices], axis=1)
+    filtered_labels = labels[filter_mask]
+
+    # Apply the filter mask to all input arrays
+    filtered_arrays = [
+        arr[filter_mask] if not isinstance(arr, list)  # Use NumPy-style indexing for non-lists
+        else [item for item, include in zip(arr, filter_mask) if include]  # Manual filtering for lists
+        for arr in converted_arrays
+    ]
+
+    #use indices
+
+
+    # Return the filtered labels and other arrays
+    return (filtered_labels, *filtered_arrays)
+
+
+def get_color(labels_row, color_hierarchy):
+    """
+    Assigns a color to a row of labels based on the hierarchy of gs_lf_tasks and color_hierarchy.
+
+    Parameters:
+    - labels_row: A binary array representing a single row from labels (shape: [138]).
+    - gs_lf_tasks: List of 138 task labels.
+    - color_hierarchy: Dictionary of color mappings for labels and categories.
+
+    Returns:
+    - A single color as a string (e.g., "#FFA500").
+    """
+    # Find active labels in the row
+    active_indices = np.where(labels_row == 1)[0]
+    active_labels = [gs_lf_tasks[i] for i in active_indices]
+
+    # If no active labels, return black
+    if not active_labels:
+        return "#000000"
+
+    if list(color_hierarchy.keys())[0] in active_labels:
+        return color_hierarchy.get(list(color_hierarchy.keys())[0])
+    for category in list(color_hierarchy.keys())[1:]:
+        if category in active_labels:
+            return color_hierarchy.get(category)
+    for category in color_hierarchy["specific"]:
+        if category in active_labels:
+            return color_hierarchy.get('specific')[category]
+
+
+    # Default to black if no match
+    return "#000000"
+
+
+def generate_colors_for_labels(labels, color_hierarchy):
+    """
+    Generates an array of colors for each row in the labels array.
+
+    Parameters:
+    - labels: Binary array of shape [4000, 138].
+    - gs_lf_tasks: List of 138 task labels.
+    - color_hierarchy: Dictionary of color mappings for labels and categories.
+
+    Returns:
+    - A list of colors corresponding to each row in labels.
+    """
+    return [get_color(row, color_hierarchy) for row in labels]
