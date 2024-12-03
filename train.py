@@ -225,8 +225,6 @@ if __name__ == "__main__":
     # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=None,n_subject=3)
     # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
 
-    #select a subset of molecules based on the labels if needed
-    #embeddings, labels, CIDs, subjects = select_molecules(subjects, embeddings, labels, CIDs,selected_labels=["bergamot", "grapefruit", "lemon", "orange", "black currant", "raspberry", "strawberry", "banana", "coconut", "pineapple","tropical","berry", "citrus","fruity"] )
 
 
     if latent_dist_fun != 'euclidean' and latent_dist_fun != 'poincare':
@@ -395,15 +393,71 @@ if __name__ == "__main__":
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
 
-            elif dataset_name in ['gslf','keller']: # For gslf and keller for example, with color_by='input_norm'
-                scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-                                            dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
-                            color_by='input_norm', shape_by='none',
+            # elif dataset_name in ['gslf','keller']: # For gslf and keller for example, with color_by='input_norm'
+            #     scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+            #                                 dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
+            #                 color_by='input_norm', shape_by='none',
+            #                 save=True, args=args,
+            #                 losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+            #                 losses_pos=model.losses_pos if model_name == 'contrastive' else [],
+            #                 hyperbolic_boundary = normalize)
+            #     c = torch.norm(dataset.labels.detach(), dim=-1)
+
+            elif dataset_name == 'gslf':
+                # For sagar for example, with color_by='entropy'
+                # scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+                #                             dataset.labels.detach(), CIDs, labels, subjects=subjects,
+                #             color_by='input_norm', shape_by='none',
+                #             save=True, args=args,
+                #             losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+                #             losses_pos=model.losses_pos if model_name == 'contrastive' else [],
+                #             hyperbolic_boundary = normalize)
+                # c = torch.norm(dataset.labels.detach(), dim=-1)
+                colors = {
+                    "fruity": "#32CD32",  # Lime Green (top-level fruity category)
+                    "citrus": "#FFA500",  # Orange (subcategory citrus)
+                    "berry": "#8A2BE2",  # Blue Violet (subcategory berry)
+                    "tropical": "#FFD700",  # Gold (subcategory tropical)
+                    "specific": {  # Specific labels mapped to their colors
+                        "bergamot": "#FFD580",
+                        "grapefruit": "#FF6347",
+                        "lemon": "#FFF44F",
+                        "orange": "#FFA500",
+                        "black currant": "#4B0082",
+                        "raspberry": "#E30B5D",
+                        "strawberry": "#FF4500",
+                        "banana": "#FFFACD",
+                        "coconut": "#FFE4C4",
+                        "pineapple": "#FFD700",
+                    },
+                }
+                color_codes= generate_colors_for_labels(labels, colors)
+
+
+
+                # select a subset of molecules based on the labels if needed
+                selected_labels,selected_subjects,selected_embeddings,selected_CIDs,selected_model_embeddings,selected_colors  = select_molecules( labels,
+                                                                     ["bergamot", "grapefruit",
+                                                                                       "lemon", "orange",
+                                                                                       "black currant", "raspberry",
+                                                                                       "strawberry", "banana",
+                                                                                       "coconut", "pineapple",
+                                                                                       "tropical", "berry", "citrus",
+                                                                                       "fruity"],subjects, embeddings,CIDs,model.embeddings,color_codes)
+                #
+
+
+                scatterplot_2d(i, selected_model_embeddings.detach().cpu().numpy(),
+                                            selected_colors, selected_CIDs, selected_labels, subjects=selected_subjects,
+                            color_by='color', shape_by='none',
                             save=True, args=args,
                             losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
                             losses_pos=model.losses_pos if model_name == 'contrastive' else [],
-                            hyperbolic_boundary = normalize)            
+                            hyperbolic_boundary = normalize)
                 c = torch.norm(dataset.labels.detach(), dim=-1)
+
+
+
 
             
             if dataset_name != 'tree':
@@ -424,9 +478,9 @@ if __name__ == "__main__":
     # plt.tight_layout()
     # # Save the correlation coefficient plot
     # plt.savefig('figs2/correlation_coefficient_vs_epochs.png')
-    # plt.close() 
-            
-            
+    # plt.close()
+
+
             # scatterplot_2d_loss(i, model.embeddings.detach(), save=True, args=args,
             #                losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
             #                losses_pos=model.losses_pos if model_name == 'contrastive' else [])
