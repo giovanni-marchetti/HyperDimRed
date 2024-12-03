@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 EPS = 0.00001
 
-sigma = 0.1
+sigma = 0.1# 0.1
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 

@@ -69,30 +69,30 @@ from sklearn.decomposition import PCA
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
-    parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
+    parser.add_argument('--representation_name', type=str, default='pom', choices={"molformer","pom"})
     parser.add_argument('--batch_size', type=int, default=200)
-    parser.add_argument('--num_epochs', type=int, default=2) #100
+    parser.add_argument('--num_epochs', type=int, default=1001) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.01)
+    parser.add_argument('--lr', type=float, default=0.001)
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='keller' , choices={"gslf","ravia","keller","sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare']) #*
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian']) #*
-    parser.add_argument('--distance_method', type=str, default='euclidean',
+    parser.add_argument('--distance_method', type=str, default='graph',
                         choices=['geo', 'graph', 'hamming', 'euclidean','similarity']) #'euclidean' for sagar/keller, 'similarity' for ravia
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=10.0)  # 0.1 #100
-    parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
+    parser.add_argument('--n_neighbors', type=int, default=5) # 20 #10
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -135,6 +135,7 @@ if __name__ == "__main__":
     if dataset_name == 'tree':
         embeddings, labels = get_tree_data(depth)
         labels = torch.tensor(labels)
+        embeddings = torch.tensor(embeddings)
         ## binary_tree is a dataset of binary sequences.
         ## The root of the tree is the node 0: binary_tree[0]
         ## groundtruth distance from node i to the root of the tree (i.e. shortest path distance from node i to the root): hamming_distance(binary_tree[0], binary_tree[i])
@@ -145,17 +146,35 @@ if __name__ == "__main__":
     elif dataset_name in ['gslf', 'keller' , 'sagar']:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=False)
+                                             grand_avg=True)
         
-        # # To perform PCA or t-SNE on MolFormer or POM enbeddings:
+        #embeddings = 100000 * torch.randn(4983, 20)
+        
+        #To perform PCA or t-SNE on MolFormer or POM enbeddings:
         # X_embedded = TSNE(n_components=2, learning_rate='auto',
+        #          init='random', perplexity=300).fit_transform(embeddings)
+        #X_embedded = PCA(n_components=2).fit_transform(embeddings)
 
-        #           init='random', perplexity=300).fit_transform(embeddings)
-        # #X_embedded = PCA(n_components=2).fit_transform(embeddings)
-        
-        
+        #Embed labels:
+        # X_embedded = TSNE(n_components=2, learning_rate='auto',
+        #          init='random', perplexity=1000).fit_transform(labels)
+        #X_embedded = PCA(n_components=2).fit_transform(labels)
+
+        print('labels', labels.shape)
+        #print(labels)
         print('embeddings', embeddings.shape)
-        print('labels', labels.shape) 
+
+        # X_embedded = PCA(n_components=20).fit_transform(embeddings)
+        # embeddings = torch.tensor(X_embedded, dtype=torch.float32)  # Convert to a PyTorch tensor
+
+        # print('embeddings after PCA', embeddings.shape)
+
+
+        
+        
+        
+        
+         
 
         ##embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
         # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
@@ -177,18 +196,27 @@ if __name__ == "__main__":
     dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
+############
     # # To visualize PCA and t-SNE applied to MolFormer or POM embeddings:
-    # #c = torch.norm(embeddings, dim=-1)
-    # c = torch.norm(dataset.labels.detach(), dim=-1)
+
+    # c = torch.norm(embeddings, dim=-1)
+
+    # #c = torch.norm(dataset.labels.detach(), dim=-1)
     # c = c/c.max()
+
+    # # entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
+    # # c = -(entropy * np.log(entropy)).sum(-1)
+
     # #plt.figure(figsize=(10, 6))
     # plt.scatter(X_embedded[:,0], X_embedded[:,1], s = 10,c = c, cmap = 'plasma')
     # #plt.scatter(X_embedded[:,0], X_embedded[:,1], c = c)
     # # print(X_embedded.shape)
     # # print(embeddings.shape)
-    # #plt.savefig('sagar_molformer_PCA.png')
-    # plt.savefig('sagar_molformer_tsne_perplexity300.png')
+    # #plt.savefig('keller_labels_PCA_norm.png')
+    # #plt.savefig('keller_labels_tsne_perplexity1000_norm.png')
+    # plt.savefig('gaussian_tsne_perplexity5000_norm.png')
     # plt.show()
+#################
 
 
 
@@ -249,9 +277,22 @@ if __name__ == "__main__":
             else:
                 model.normalize(normalization=False)
             if distance_method == 'graph':
-                data_nn_matrix = knn_graph_weighted_adjacency_matrix(batch, n_neighbors=3, metric='minkowski')
-                data_dist_matrix = (data_nn_matrix > 0).astype(int)
-                data_dist_matrix = torch.tensor(data_dist_matrix)
+                # data_nn_matrix = knn_graph_weighted_adjacency_matrix(batch, n_neighbors=3, metric='minkowski')
+                # data_dist_matrix = (data_nn_matrix > 0).astype(int)
+                # data_dist_matrix = torch.tensor(data_dist_matrix)
+
+                epsilon = 10.0
+                data_dist_matrix = scipy.spatial.distance.cdist(batch.detach().numpy(), batch.detach().numpy(), metric='minkowski', p=2)
+                data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
+                #data_dist_matrix = torch.cdist(batch, batch, p=2)
+
+                data_binary_dist_matrix = (data_dist_matrix < epsilon).int()
+
+                #print('data_dist_matrix mean', data_dist_matrix.mean())
+
+            # if distance_method == 'eps_graph':
+            #     epsilon = 1.0
+            #     data_dist_matrix = (data_dist_matrix > epsilon).astype(int)
             elif distance_method == 'geo':
                 data_dist_matrix = knn_geodesic_distance_matrix(batch)
                 if model_name == 'contrastive':
@@ -262,6 +303,7 @@ if __name__ == "__main__":
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = (data_dist_matrix <= 1.01).astype(int)
                     data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
+                    
                 data_dist_matrix = torch.tensor(data_dist_matrix)
             elif distance_method == 'euclidean':
                 #data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='euclidean')
@@ -288,8 +330,8 @@ if __name__ == "__main__":
 
                 #data_dist_matrix = scipy.spatial.distance.cdist(embeddings, embeddings, metric='euclidean')
  
-                #data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='minkowski', p=2) #metric='euclidean'
-                data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
+                data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='minkowski', p=2) #metric='euclidean'
+                #data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
 
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 data_dist_matrix = data_dist_matrix / data_dist_matrix.max()
@@ -317,9 +359,12 @@ if __name__ == "__main__":
             optimizer.step(idx)
             total_loss += loss.item()
 
-
-        print(f'Epoch {i}, loss: {total_loss / len(data_loader):.3f}')
-        losses.append(total_loss / len(data_loader))
+        if dataset_name == 'tree':
+            print(f'Epoch {i}, loss: {total_loss:.3f}')
+            losses.append(total_loss)         
+        else:
+            print(f'Epoch {i}, loss: {total_loss / len(data_loader):.3f}')
+            losses.append(total_loss / len(data_loader))
 
         if i % 10 == 0:  # 1000
             # save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
@@ -327,7 +372,7 @@ if __name__ == "__main__":
             #                 losses_pos=model.losses_pos if model_name == 'contrastive' else [])
             # scatterplot_2d(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(), CIDs,labels, subjects=subjects,
             
-            if dataset_name == 'ravia':
+            if dataset_name in ['ravia', 'snitz']:
                 scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
                                             ent_array, CIDs, labels, subjects=subjects,
                             color_by='color', shape_by='none',
@@ -350,9 +395,9 @@ if __name__ == "__main__":
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
 
-            elif dataset_name == 'gslf': # For sagar for example, with color_by='entropy'
+            elif dataset_name in ['gslf','keller']: # For gslf and keller for example, with color_by='input_norm'
                 scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-                                            dataset.labels.detach(), CIDs, labels, subjects=subjects,
+                                            dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
                             color_by='input_norm', shape_by='none',
                             save=True, args=args,
                             losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
@@ -361,11 +406,11 @@ if __name__ == "__main__":
                 c = torch.norm(dataset.labels.detach(), dim=-1)
 
             
-
-            radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
-            corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
-            correlation_coefficients.append(corr)  # Store the correlation coefficient
-            print(correlation_coefficients)
+            if dataset_name != 'tree':
+                radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+                corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+                correlation_coefficients.append(corr)  # Store the correlation coefficient
+                print(correlation_coefficients)
 
 
 
