@@ -18,42 +18,44 @@ plt.rcParams['agg.path.chunksize'] = 10000
 from constants import *
 
 
-def plot_losses(i, input_embeddings, args=None, save=False, losses=[],
-                losses_pos=[], losses_neg=[]):
+def plot_losses(i, args=None, save=False, losses=None,
+                losses_pos=None, losses_neg=None):
     color_map = 'plasma'
     # latent_embeddings_norm = torch.norm(latent_embeddings, dim=-1)
-    data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
-                       input_embeddings.shape[-1]
-    fig, ax = plt.subplots(2, 1, figsize=(30, 90), sharey=False)
-    ax[1].plot(np.arange(len(losses)), losses, label='total')
 
-    ax[1].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
-    ax[2].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
+    fig, ax = plt.subplots(2, 1, figsize=(30, 90), sharey=False)
+    ax[0].plot(np.arange(len(losses)), losses, label='total')
+
+    ax[0].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
+    ax[1].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
 
     fig.subplots_adjust(hspace=0.3)
     # showing the legend
+    ax[0].legend()
     ax[1].legend()
-    ax[2].legend()
     plt.title(
         f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
-
+    f_path = f"losses/{args.dataset_name}/{args.distance_method}/{args.latent_dist_fun}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.epsilon}/{args.batch_size}"
     # create a folder if it does not exist
     if save:
         if not os.path.exists(
-                f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
+                f_path):
             os.makedirs(
-                f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
+                f_path)
         plt.savefig(
-            f"figs2/{args.dataset_name}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.png")
+            f_path+f"{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.png")
         plt.close()
     else:
         plt.show()
-def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subjects=None, color_by='entropy', shape_by='none', args=None, save=False, plot_edges=False, losses=[],
-                   losses_pos=[], losses_neg=[], hyperbolic_boundary=True):
+def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subjects=None, color_by='entropy', shape_by='none', args=None, save=False, plot_edges=False,
+                    hyperbolic_boundary=True):
     color_map = 'plasma'
     #
     # data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
     #                    input_embeddings.shape[-1]
+
+    # f_path = f"figs2/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/"
+    f_path = f"figs2/{args.dataset_name}/{args.distance_method}/{args.latent_dist_fun}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.epsilon}/{args.batch_size}"
     fig, ax = plt.subplots(1, 1, figsize=(30, 30), sharey=False)
     markers = ["o", "s", "D", "P", "X", "v", ">", "<", "^", "d", "p", "*", "h", "H", "+", "x", "|", "_"]
     if shape_by=='subject':
@@ -92,30 +94,28 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
         raise ValueError('color_by not recognized')
 
 
-    radius = np.sqrt(np.sum(np.square(latent_embeddings), axis=1))
-    radius = poincare_distance(torch.from_numpy(latent_embeddings), torch.zeros((1, 2)))
-    corr = np.corrcoef(radius, c)
+    # radius = np.sqrt(np.sum(np.square(latent_embeddings), axis=1))
+    # radius = poincare_distance(torch.from_numpy(latent_embeddings), torch.zeros((1, 2)))
+    # corr = np.corrcoef(radius, c)
     #print('corr', corr)
 
     # Plotting the correlation
-    plt.figure(figsize=(10, 6))
-    plt.scatter(radius, c, color='#6a0dad', alpha=0.7, s=50)  # Scatter plot # edgecolor='k'
+    # plt.figure(figsize=(10, 6))
+    # plt.scatter(radius, c, color='#6a0dad', alpha=0.7, s=50)  # Scatter plot # edgecolor='k'
     #
     # # Calculate the line of best fit
-    slope, intercept = np.polyfit(radius, c, 1)  # Linear regression
-    line = slope * radius + intercept  # Calculate the y values for the line
+    # slope, intercept = np.polyfit(radius, c, 1)  # Linear regression
+    # line = slope * radius + intercept  # Calculate the y values for the line
     #
     # # Plot the regression line
-    plt.plot(radius, line, color='#ffbf00', linewidth=2)  # Add the line to the plot
+    # plt.plot(radius, line, color='#ffbf00', linewidth=2)  # Add the line to the plot
     #
-    plt.xlabel('Hyperbolic radius', fontsize=30)
+    # plt.xlabel('Hyperbolic radius', fontsize=30)
     # plt.ylabel('Entropy', fontsize=30)
-    plt.ylabel('Color', fontsize=30)
-
    # plt.title('Correlation between Radius and Entropy', fontsize=16)  # Added title
-    plt.grid(True)
-    plt.legend()  # Show legend
-    plt.tight_layout()  # Adjust layout for better spacing
+    #plt.grid(True)
+    #plt.legend()  # Show legend
+    #plt.tight_layout()  # Adjust layout for better spacing
 
     # plt.xticks([])
     # plt.yticks([])
@@ -123,8 +123,8 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
     # #plt.axis('off')
     #
     # # Save the figure with 'corr' in the filename
-    plt.savefig(f'figs2/{i}_corr.png')  # Changed filename to include 'corr'
-    plt.close()  # Close the plot to avoid display if running in a script
+    # plt.savefig(f'figs2/{i}_corr.png')  # Changed filename to include 'corr'
+    # plt.close()  # Close the plot to avoid display if running in a script
 
 
 
@@ -168,11 +168,10 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
     # create a folder if it does not exist
     if save:
         if not os.path.exists(
-                f"figs2/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/"):
+                f_path):
             os.makedirs(
-                f"figs2/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/")
-        plt.savefig(
-            f"figs2/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_embeddings.png")
+                f_path)
+        plt.savefig(f_path+f"{args.random_string}_{i}_{args.seed}_{args.dataset_name}_embeddings.png")
         plt.close()
     else:
         plt.show()
@@ -198,64 +197,6 @@ def save_embeddings(i, args, latent_embeddings, losses=[], losses_pos=[], losses
         f"results/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_lossesneg.npy",
         losses_neg)
 
-
-def scatterplot_2d_gslf(latent_embeddings, input_embeddings, labels, color_map='viridis', args=None, losses=[],
-                        losses_pos=[], losses_neg=[]):
-    type1 = {'floral': '#F3F1F7', 'muguet': '#FAD7E6', 'lavender': '#8883BE', 'jasmin': '#BD81B7'}
-    type2 = {'meaty': '#F5EBE8', 'savory': '#FBB360', 'beefy': '#7B382A', 'roasted': '#F7A69E'}
-    type3 = {'ethereal': '#F2F6EC', 'cognac': '#BCE2D2', 'fermented': '#79944F', 'alcoholic': '#C2DA8F'}
-    types = [type1, type2, type3]
-
-    data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
-                       input_embeddings.shape[-1]
-    latent_embeddings = latent_embeddings.detach().cpu().numpy()
-    fig, ax = plt.subplots(3, 1, figsize=(10, 30), sharey=False)
-
-    # make n different colors
-    # colors = sns.color_palette("hsv", data_dist_matrix.shape[0])
-
-    # for i in range(data_dist_matrix.shape[0]):
-    #     for j in range(i+1, data_dist_matrix.shape[1]):
-    #         if data_dist_matrix[i,j] <= 1.01:
-    #             ax[0].plot([latent_embeddings[i,0], latent_embeddings[j,0]], [latent_embeddings[i,1], latent_embeddings[j,1]], color=colors[i], linewidth=0.5)
-
-    labels = labels.detach().cpu().numpy()
-    for type in types:
-        for key in type.keys():
-            # where in gs_lf_tasks is the key
-            key_idx = gs_lf_tasks.index(key)
-            # choose the indices of the labels that are 1 in the key_idx
-            embedding_idx = np.where(labels[:, key_idx] == 1)[0]
-            # idx = labels.index(key)
-            ax[0].scatter(latent_embeddings[embedding_idx, 0], latent_embeddings[embedding_idx, 1], c=type[key],
-                          label=key)
-
-    ax[1].plot(np.arange(len(losses)), losses, label='total')
-
-    ax[1].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
-    ax[2].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
-    ax[0].set_ylim(-1.09, 1.09)
-    ax[0].set_xlim(-1.09, 1.09)
-
-    fig.subplots_adjust(hspace=0.3)
-    # showing the legend
-    ax[1].legend()
-    ax[2].legend()
-    plt.title(
-        f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
-
-    # create a folder if it does not exist
-    if not os.path.exists(
-            f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/"):
-        os.makedirs(
-            f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/")
-    plt.savefig(
-        f"figs2/{args.depth}/{args.latent_dist_fun}/{args.normalize}/{args.model_name}/{args.optimizer}/{args.lr}/{args.temperature}/{args.random_string}_{args.num_epochs}_{args.seed}_{args.dataset_name}.png")
-
-    plt.close()
-
-
-#
 
 
 def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3, reduction_method=None, perplexity=None):
