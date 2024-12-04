@@ -69,7 +69,7 @@ from sklearn.decomposition import PCA
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
-    parser.add_argument('--representation_name', type=str, default='pom', choices={"molformer","pom"})
+    parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
     parser.add_argument('--batch_size', type=int, default=200)
     parser.add_argument('--num_epochs', type=int, default=1001) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='keller' , choices={"gslf","ravia","keller","sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"gslf","ravia","keller","sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -93,6 +93,7 @@ if __name__ == "__main__":
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=10.0)  # 0.1 #100
     parser.add_argument('--n_neighbors', type=int, default=5) # 20 #10
+    parser.add_argument('--epsilon', type=int, default=10.0)  # 20 #10
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -127,6 +128,7 @@ if __name__ == "__main__":
     depth = args.depth
     # args.batch_size = 2 ** args.depth - 1  # to get full batch
     batch_size = args.batch_size
+    epsilon = args.epsilon
 #    set_seeds(seed)
 
     if distance_method == 'similarity' and dataset_name not in ['ravia']:
@@ -146,7 +148,7 @@ if __name__ == "__main__":
     elif dataset_name in ['gslf', 'keller' , 'sagar']:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True)
+                                             grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False)
         
         #embeddings = 100000 * torch.randn(4983, 20)
         
@@ -279,7 +281,7 @@ if __name__ == "__main__":
                 # data_dist_matrix = (data_nn_matrix > 0).astype(int)
                 # data_dist_matrix = torch.tensor(data_dist_matrix)
 
-                epsilon = 10.0
+
                 data_dist_matrix = scipy.spatial.distance.cdist(batch.detach().numpy(), batch.detach().numpy(), metric='minkowski', p=2)
                 data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
                 #data_dist_matrix = torch.cdist(batch, batch, p=2)
@@ -375,9 +377,10 @@ if __name__ == "__main__":
                                             ent_array, CIDs, labels, subjects=subjects,
                             color_by='color', shape_by='none',
                             save=True, args=args,
-                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
                             hyperbolic_boundary = normalize)
+
+                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
                 c = ent_array
 
 
@@ -386,9 +389,11 @@ if __name__ == "__main__":
                                             dataset.labels.detach().cpu().numpy(), CIDs, labels, subjects=subjects,
                             color_by='entropy', shape_by='none',
                             save=True, args=args,
-                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
-                            hyperbolic_boundary = normalize)            
+                            hyperbolic_boundary = normalize)
+
+                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
+
                 # For sagar for example, print correlation coefficient between entropy and hyperbolic radius:
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
@@ -432,9 +437,6 @@ if __name__ == "__main__":
                     },
                 }
                 color_codes= generate_colors_for_labels(labels, colors)
-
-
-
                 # select a subset of molecules based on the labels if needed
                 selected_labels,selected_subjects,selected_embeddings,selected_CIDs,selected_model_embeddings,selected_colors  = select_molecules( labels,
                                                                      ["bergamot", "grapefruit",
@@ -451,10 +453,10 @@ if __name__ == "__main__":
                                             selected_colors, selected_CIDs, selected_labels, subjects=selected_subjects,
                             color_by='color', shape_by='none',
                             save=True, args=args,
-                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
                             hyperbolic_boundary = normalize)
                 c = torch.norm(dataset.labels.detach(), dim=-1)
+                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
 
 
