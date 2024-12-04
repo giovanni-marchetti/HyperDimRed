@@ -69,12 +69,13 @@ from sklearn.decomposition import PCA
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
+    parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='pom', choices={"molformer","pom"})
     parser.add_argument('--batch_size', type=int, default=200)
-    parser.add_argument('--num_epochs', type=int, default=1001) #100
+    parser.add_argument('--num_epochs', type=int, default=101) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=0.01)
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
@@ -86,13 +87,14 @@ if __name__ == "__main__":
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare']) #*
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian']) #*
-    parser.add_argument('--distance_method', type=str, default='graph',
+    parser.add_argument('--distance_method', type=str, default='euclidean',
                         choices=['geo', 'graph', 'hamming', 'euclidean','similarity']) #'euclidean' for sagar/keller, 'similarity' for ravia
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=10.0)  # 0.1 #100
-    parser.add_argument('--n_neighbors', type=int, default=5) # 20 #10
+    parser.add_argument('--n_neighbors', type=int, default=10) # 20 #10
+    parser.add_argument('--epsilon', type=float, default=10.0) # 
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -107,6 +109,7 @@ if __name__ == "__main__":
         print('Using CPU')
 
     args.random_string = uuid.uuid4().hex
+    data_type = args.data_type
     dataset_name = args.dataset_name
     representation_name = args.representation_name
     num_epochs = args.num_epochs
@@ -121,6 +124,7 @@ if __name__ == "__main__":
     distr = args.distr
     distance_method = args.distance_method
     n_neighbors = args.n_neighbors
+    epsilon = args.epsilon
     temperature = args.temperature
 
     ### Overwrite the batchsize ###
@@ -279,18 +283,19 @@ if __name__ == "__main__":
                 # data_dist_matrix = (data_nn_matrix > 0).astype(int)
                 # data_dist_matrix = torch.tensor(data_dist_matrix)
 
-                epsilon = 10.0
-                data_dist_matrix = scipy.spatial.distance.cdist(batch.detach().numpy(), batch.detach().numpy(), metric='minkowski', p=2)
+                #epsilon = 30.0
+                if data_type == 'representation':
+                    data_dist_matrix = scipy.spatial.distance.cdist(batch.detach().numpy(), batch.detach().numpy(), metric='minkowski', p=2)
+                elif data_type == 'labels':
+                    data_dist_matrix = scipy.spatial.distance.cdist(label.detach().numpy(), label.detach().numpy(), metric='minkowski', p=2)         
                 data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
                 #data_dist_matrix = torch.cdist(batch, batch, p=2)
 
-                data_binary_dist_matrix = (data_dist_matrix < epsilon).int()
+                if model_name == 'contrastive':
+                    data_binary_dist_matrix = (data_dist_matrix < epsilon).int()
 
                 #print('data_dist_matrix mean', data_dist_matrix.mean())
 
-            # if distance_method == 'eps_graph':
-            #     epsilon = 1.0
-            #     data_dist_matrix = (data_dist_matrix > epsilon).astype(int)
             elif distance_method == 'geo':
                 data_dist_matrix = knn_geodesic_distance_matrix(batch)
                 if model_name == 'contrastive':
@@ -325,11 +330,13 @@ if __name__ == "__main__":
                 # plt.hist(histo, bins=100)
                 # plt.show()
                 
+                
+                if data_type == 'representation':
+                    data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='minkowski', p=2) #metric='euclidean'
+                elif data_type == 'labels':
+                    data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
 
                 #data_dist_matrix = scipy.spatial.distance.cdist(embeddings, embeddings, metric='euclidean')
- 
-                data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='minkowski', p=2) #metric='euclidean'
-                #data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
 
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 data_dist_matrix = data_dist_matrix / data_dist_matrix.max()
@@ -393,15 +400,15 @@ if __name__ == "__main__":
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
 
-            # elif dataset_name in ['gslf','keller']: # For gslf and keller for example, with color_by='input_norm'
-            #     scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-            #                                 dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
-            #                 color_by='input_norm', shape_by='none',
-            #                 save=True, args=args,
-            #                 losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-            #                 losses_pos=model.losses_pos if model_name == 'contrastive' else [],
-            #                 hyperbolic_boundary = normalize)
-            #     c = torch.norm(dataset.labels.detach(), dim=-1)
+            elif dataset_name in ['keller']: #['gslf','keller'] # For gslf and keller for example, with color_by='input_norm'
+                scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+                                            dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
+                            color_by='input_norm', shape_by='none',
+                            save=True, args=args,
+                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
+                            hyperbolic_boundary = normalize)
+                c = torch.norm(dataset.labels.detach(), dim=-1)
 
             elif dataset_name == 'gslf':
                 # For sagar for example, with color_by='entropy'
