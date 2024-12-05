@@ -69,18 +69,19 @@ from sklearn.decomposition import PCA
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
-    parser.add_argument('--data_type', type=str, default='representation' , choices={"representation","labels"}) #label or batch
-    parser.add_argument('--representation_name', type=str, default='pom', choices={"molformer","pom"})
-    parser.add_argument('--batch_size', type=int, default=240)
-    parser.add_argument('--num_epochs', type=int, default=1001) #100
+    parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
+    parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
+    parser.add_argument('--batch_size', type=int, default=200)
+    parser.add_argument('--num_epochs', type=int, default=200) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--lr', type=float, default=0.001)
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-    parser.add_argument('--dataset_name', type=str, default='keller' , choices={"gslf","ravia","keller","sagar"})  # tree for synthetic, gslf for real
+
+    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"gslf","ravia","keller","sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -91,9 +92,9 @@ if __name__ == "__main__":
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=1.0)  # 0.1 #100
+    parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
     parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
-    parser.add_argument('--epsilon', type=float, default=0.2) # 
+    parser.add_argument('--epsilon', type=float, default=10.0) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -149,7 +150,7 @@ if __name__ == "__main__":
     elif dataset_name in ['gslf', 'keller' , 'sagar']:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True)
+                                             grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False)
         
         #embeddings = 100000 * torch.randn(4983, 20)
         
@@ -277,7 +278,7 @@ if __name__ == "__main__":
                 model.normalize()
             else:
                 model.normalize(normalization=False)
-            if distance_method == 'graph':
+            if distance_method == 'graph' :
                 # data_nn_matrix = knn_graph_weighted_adjacency_matrix(batch, n_neighbors=3, metric='minkowski')
                 # data_dist_matrix = (data_nn_matrix > 0).astype(int)
                 # data_dist_matrix = torch.tensor(data_dist_matrix)
@@ -286,7 +287,7 @@ if __name__ == "__main__":
                 if data_type == 'representation':
                     data_dist_matrix = scipy.spatial.distance.cdist(batch.detach().numpy(), batch.detach().numpy(), metric='minkowski', p=2)
                 elif data_type == 'labels':
-                    data_dist_matrix = scipy.spatial.distance.cdist(label.detach().numpy(), label.detach().numpy(), metric='minkowski', p=2)         
+                    data_dist_matrix = scipy.spatial.distance.cdist(label.detach().numpy(), label.detach().numpy(), metric='minkowski', p=2)
                 data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
                 #data_dist_matrix = torch.cdist(batch, batch, p=2)
 
@@ -333,7 +334,7 @@ if __name__ == "__main__":
                 # plt.hist(histo, bins=100)
                 # plt.show()
                 
-                
+
                 if data_type == 'representation':
                     data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='minkowski', p=2) #metric='euclidean'
                 elif data_type == 'labels':
@@ -342,7 +343,7 @@ if __name__ == "__main__":
                 #data_dist_matrix = scipy.spatial.distance.cdist(embeddings, embeddings, metric='euclidean')
 
                 data_dist_matrix = torch.tensor(data_dist_matrix)
-                data_dist_matrix = data_dist_matrix / data_dist_matrix.max()
+                # data_dist_matrix = data_dist_matrix / data_dist_matrix.max()
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=n_neighbors,
                                                                mode='connectivity', include_self=False).toarray()
@@ -385,9 +386,10 @@ if __name__ == "__main__":
                                             ent_array, CIDs, labels, subjects=subjects,
                             color_by='color', shape_by='none',
                             save=True, args=args,
-                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
                             hyperbolic_boundary = normalize)
+
+                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
                 c = ent_array
 
 
@@ -396,9 +398,11 @@ if __name__ == "__main__":
                                             dataset.labels.detach().cpu().numpy(), CIDs, labels, subjects=subjects,
                             color_by='entropy', shape_by='none',
                             save=True, args=args,
-                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
-                            hyperbolic_boundary = normalize)            
+                            hyperbolic_boundary = normalize)
+
+                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
+
                 # For sagar for example, print correlation coefficient between entropy and hyperbolic radius:
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
@@ -408,64 +412,64 @@ if __name__ == "__main__":
                                             dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
                             color_by='input_norm', shape_by='none',
                             save=True, args=args,
-                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
                             hyperbolic_boundary = normalize)
                 c = torch.norm(dataset.labels.detach(), dim=-1)
 
             elif dataset_name == 'gslf':
                 # For sagar for example, with color_by='entropy'
-                scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-                                            dataset.labels.detach(), CIDs, labels, subjects=subjects,
-                            color_by='input_norm', shape_by='none',
-                            save=True, args=args,
-                            losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else [],
-                            hyperbolic_boundary = normalize)
-                c = torch.norm(dataset.labels.detach(), dim=-1)
-                
-                # colors = {
-                #     "fruity": "#32CD32",  # Lime Green (top-level fruity category)
-                #     "citrus": "#FFA500",  # Orange (subcategory citrus)
-                #     "berry": "#8A2BE2",  # Blue Violet (subcategory berry)
-                #     "tropical": "#FFD700",  # Gold (subcategory tropical)
-                #     "specific": {  # Specific labels mapped to their colors
-                #         "bergamot": "#FFD580",
-                #         "grapefruit": "#FF6347",
-                #         "lemon": "#FFF44F",
-                #         "orange": "#FFA500",
-                #         "black currant": "#4B0082",
-                #         "raspberry": "#E30B5D",
-                #         "strawberry": "#FF4500",
-                #         "banana": "#FFFACD",
-                #         "coconut": "#FFE4C4",
-                #         "pineapple": "#FFD700",
-                #     },
-                # }
-                # color_codes= generate_colors_for_labels(labels, colors)
-
-
-
-                # # select a subset of molecules based on the labels if needed
-                # selected_labels,selected_subjects,selected_embeddings,selected_CIDs,selected_model_embeddings,selected_colors  = select_molecules( labels,
-                #                                                      ["bergamot", "grapefruit",
-                #                                                                        "lemon", "orange",
-                #                                                                        "black currant", "raspberry",
-                #                                                                        "strawberry", "banana",
-                #                                                                        "coconut", "pineapple",
-                #                                                                        "tropical", "berry", "citrus",
-                #                                                                        "fruity"],subjects, embeddings,CIDs,model.embeddings,color_codes)
-                # #
-
-
-                # scatterplot_2d(i, selected_model_embeddings.detach().cpu().numpy(),
-                #                             selected_colors, selected_CIDs, selected_labels, subjects=selected_subjects,
-                #             color_by='color', shape_by='none',
+                # scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+                #                             dataset.labels.detach(), CIDs, labels, subjects=subjects,
+                #             color_by='input_norm', shape_by='none',
                 #             save=True, args=args,
                 #             losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else [],
                 #             losses_pos=model.losses_pos if model_name == 'contrastive' else [],
                 #             hyperbolic_boundary = normalize)
                 # c = torch.norm(dataset.labels.detach(), dim=-1)
+                colors = {
+                    # "fruity": "#32CD32",  # Lime Green (top-level fruity category)
+                    # "citrus": "#FFA500",  # Orange (subcategory citrus)
+                    # "berry": "#8A2BE2",  # Blue Violet (subcategory berry)
+                    # "tropical": "#FFD700",  # Gold (subcategory tropical)
+                    "specific": {  # Specific labels mapped to their colors
+                        # "bergamot": "#FFD580",
+                        # "grapefruit": "#FF6347",
+                        # "lemon": "#FFF44F",
+                        "orange": "#FFA500",
+                        # "black currant": "#4B0082",
+                        # "raspberry": "#E30B5D",
+                        "strawberry": "#FF4500",
+                        "banana": "#FFFACD",
+                        "coconut": "#FFE4C4",
+                        # "pineapple": "#FFD700",
+                    },
+                }
+                color_codes= generate_colors_for_labels(labels, colors)
+                # select a subset of molecules based on the labels if needed
+                selected_labels,selected_subjects,selected_embeddings,selected_CIDs,selected_model_embeddings,selected_colors  = select_molecules( labels,
+                                                                     [
+                                                                         # "bergamot", "grapefruit",
+                                                                         #               "lemon",
+                                                                      "orange",
+                                                                                       # "black currant", "raspberry",
+                                                                                       "strawberry",
+                                                                      "banana",
+                                                                                       "coconut",
+                                                                      # "pineapple",
+                                                                                       # "tropical",
+                                                                      # "berry", "citrus",
+                                                                      #                  "fruity"
+                                                                      ],subjects, embeddings,CIDs,model.embeddings,color_codes)
+                #
+
+
+                scatterplot_2d(i, selected_model_embeddings.detach().cpu().numpy(),
+                                            selected_colors, selected_CIDs, selected_labels, subjects=selected_subjects,
+                            color_by='color', shape_by='none',
+                            save=True, args=args,
+                            hyperbolic_boundary = normalize)
+                c = torch.norm(dataset.labels.detach(), dim=-1)
+                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
 
 

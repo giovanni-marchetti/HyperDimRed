@@ -427,7 +427,7 @@ def select_molecules(labels, selected_labels, *arrays ):
     return (filtered_labels, *filtered_arrays)
 
 
-def get_color(labels_row, color_hierarchy):
+def get_color_starthigh(labels_row, color_hierarchy):
     """
     Assigns a color to a row of labels based on the hierarchy of gs_lf_tasks and color_hierarchy.
 
@@ -460,6 +460,47 @@ def get_color(labels_row, color_hierarchy):
     # Default to black if no match
     return "#000000"
 
+def get_color_startlow(labels_row, color_hierarchy):
+    """
+    Assigns a color to a row of labels based on the hierarchy of gs_lf_tasks and color_hierarchy.
+
+    Parameters:
+    - labels_row: A binary array representing a single row from labels (shape: [138]).
+    - gs_lf_tasks: List of 138 task labels.
+    - color_hierarchy: Dictionary of color mappings for labels and categories.
+
+    Returns:
+    - A single color as a string (e.g., "#FFA500").
+    """
+    # Find active labels in the row
+    active_indices = np.where(labels_row == 1)[0]
+
+    active_labels = [gs_lf_tasks[i] for i in active_indices]
+    selected_color = "#000000"
+    # If no active labels, return black
+    if not active_labels:
+        return "#000000"
+
+
+    n_actives = 0
+    for category in color_hierarchy["specific"]:
+        if category in active_labels:
+            selected_color= color_hierarchy.get('specific')[category]
+            n_actives+=1
+    # for category in list(color_hierarchy.keys())[1:]:
+    #     if category in active_labels:
+    #         selected_color = color_hierarchy.get(category)
+    #     n_actives += 1
+    # if list(color_hierarchy.keys())[0] in active_labels:
+    #     selected_color = color_hierarchy.get(list(color_hierarchy.keys())[0])
+    #     n_actives += 1
+
+
+
+    # Default to black if no match
+    if n_actives>1:
+        return "#000000"
+    return selected_color
 
 def generate_colors_for_labels(labels, color_hierarchy):
     """
@@ -473,4 +514,4 @@ def generate_colors_for_labels(labels, color_hierarchy):
     Returns:
     - A list of colors corresponding to each row in labels.
     """
-    return [get_color(row, color_hierarchy) for row in labels]
+    return [get_color_startlow(row, color_hierarchy) for row in labels]
