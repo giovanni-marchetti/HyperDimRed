@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='fmri_sagar' , choices={"gslf","ravia","keller","sagar","fmri_sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     elif dataset_name in ['gslf', 'keller' , 'sagar']:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False)
+                                             grand_avg=True if dataset_name == 'sagar' else False)
         
         #embeddings = 100000 * torch.randn(4983, 20)
         
@@ -184,7 +184,7 @@ if __name__ == "__main__":
          
 
         ##embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
-        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
 
     elif dataset_name in ['ravia']:
         data_dist_matrix, intensity_labels = prepare_ravia_or_snitz(
@@ -197,17 +197,16 @@ if __name__ == "__main__":
         subjects = np.zeros(data_dist_matrix.shape[0], dtype=int)
         data_dist_matrix = torch.tensor(data_dist_matrix)
         batch_size= 28
-    elif dataset_name in ['fmri_sagar']:
-        data = read_fmri(base_dir+'/odor_responses_S1-3_regionized')
+    elif dataset_name in ['sagar_fmri']:
+        input_embeddings = f'embeddings/{representation_name}/sagar_{representation_name}_embeddings_13_Apr17.csv'
+        embeddings, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
+                                                             input_embeddings,subject_id=subject,selected_roi=roi)
 
         #how to read for one specific subject and one specific area of the brain
         # subject =1 #can be 1,2,3
         # roi = 'APC' # can be
         #(n_stim, n_voxels, n_timecomponents) = data[subject - 1][roi].shape
-        data = data[subject - 1][roi]
-        data = data.max(axis=2)
-        embeddings = torch.tensor(data, dtype=torch.float32)
-        labels = torch.tensor(data, dtype=torch.float32)
+
 
     else:
         raise ValueError('Dataset not recognized')
