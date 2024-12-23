@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"gslf","ravia","keller","sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='fmri_sagar' , choices={"gslf","ravia","keller","sagar","fmri_sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -194,6 +194,13 @@ if __name__ == "__main__":
         subjects = np.zeros(data_dist_matrix.shape[0], dtype=int)
         data_dist_matrix = torch.tensor(data_dist_matrix)
         batch_size= 28
+    elif dataset_name in ['fmri_sagar']:
+        data = read_fmri(base_dir+'/odor_responses_S1-3_regionized')
+
+        #how to read for one specific subject and one specific area of the brain
+        subject =1 #can be 1,2,3
+        roi = 'OFC' # can be "OFC", "PirF","PirT","AMY"
+        fmri_data_y = data[subject - 1][roi]
     else:
         raise ValueError('Dataset not recognized')
 

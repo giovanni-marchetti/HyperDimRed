@@ -7,6 +7,8 @@ import ast
 import numpy as np
 from constants import *
 import random
+import scipy.io as sio
+
 def set_seeds(seed):
 
     torch.manual_seed(seed)
@@ -245,6 +247,36 @@ def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg,
 
     CIDs = torch.from_numpy(np.array(CIDs.tolist()))
     return embeddings,labels,subjects,CIDs
+
+def read_fmri(base_path):
+    parent_input_sagar_original = f'{base_path}/odor_responses_S1.mat'
+    data1 = sio.loadmat(parent_input_sagar_original)
+    parent_input_sagar_original = f'{base_path}/odor_responses_S2.mat'
+    data2 = sio.loadmat(parent_input_sagar_original)
+    parent_input_sagar_original = f'{base_path}/odor_responses_S3.mat'
+    data3 = sio.loadmat(parent_input_sagar_original)
+
+    rois_all = []
+    for data_s in [data1, data2, data3]:
+        rois = {}
+        rois['PirF'] = data_s['odor_vals'][0][0]
+        rois['PirT'] = data_s['odor_vals'][0][1]
+        rois['AMY'] = data_s['odor_vals'][0][2]
+        rois['OFC'] = data_s['odor_vals'][0][3]
+        rois_all.append(rois)
+
+    for rois in rois_all:
+        for key in rois.keys():
+            roi = rois[key]
+            roi = np.moveaxis(roi, -1, 0)
+            # roi = np.mean(roi,-1)
+            rois[key] = roi
+
+    return rois_all
+#
+
+
+
 
 
 def prepare_ravia_or_snitz(dataset, base_path='/local_storage/datasets/farzaneh/alignment_olfaction_datasets/'):
