@@ -248,29 +248,63 @@ def read_embeddings(base_dir, descriptors, embeddings_perception_csv, grand_avg,
     CIDs = torch.from_numpy(np.array(CIDs.tolist()))
     return embeddings,labels,subjects,CIDs
 
-def read_fmri(base_path):
-    parent_input_sagar_original = f'{base_path}/odor_responses_S1.mat'
+def read_fmri_sagar(base_dir, descriptors, embeddings_perception_csv,subject_id,selected_roi):
+    ds = pd.read_csv(base_dir + embeddings_perception_csv)
+    ds = prepare_dataset(ds)
+
+
+
+
+
+    parent_input_sagar_original = f'{base_dir}embeddings/fMRI/odor_responses_S1-3_regionized/odor_responses_S{subject_id}.mat'
     data1 = sio.loadmat(parent_input_sagar_original)
-    parent_input_sagar_original = f'{base_path}/odor_responses_S2.mat'
-    data2 = sio.loadmat(parent_input_sagar_original)
-    parent_input_sagar_original = f'{base_path}/odor_responses_S3.mat'
-    data3 = sio.loadmat(parent_input_sagar_original)
 
-    rois_all = []
-    for data_s in [data1, data2, data3]:
-        rois = {}
-        rois['PirF'] = data_s['odor_vals'][0][0]
-        rois['PirT'] = data_s['odor_vals'][0][1]
-        rois['AMY'] = data_s['odor_vals'][0][2]
-        rois['OFC'] = data_s['odor_vals'][0][3]
-        rois_all.append(rois)
 
-    for rois in rois_all:
-        for key in rois.keys():
-            roi = rois[key]
-            roi = np.moveaxis(roi, -1, 0)
-            # roi = np.mean(roi,-1)
-            rois[key] = roi
+    rois = {}
+    rois['PirF'] = data1['odor_vals'][0][0]
+    rois['PirT'] = data1['odor_vals'][0][1]
+    rois['AMY'] = data1['odor_vals'][0][2]
+    rois['OFC'] = data1['odor_vals'][0][3]
+
+    for key in rois.keys():
+        roi = rois[key]
+        roi = np.moveaxis(roi, -1, 0)
+        # roi = np.mean(roi,-1)
+        rois[key] = roi
+
+    embeddings =[]
+    CIDs= []
+    subjects = []
+    all_rois = []
+
+    # sort ds by CID and remove all the those rows that their CID is not in the list of CIDs
+    ds = ds.sort_values(by='CID')
+    ds = ds[['CID', 'embeddings','y','subject']]
+    ds = ds[ds['CID'].isin(CID_sagar)]
+    ds = ds[ds['subject'] == subject_id]
+
+
+
+    data = rois[selected_roi]
+    data = data.max(axis=2)
+
+    subjects=[str(subject_id)]*data.shape[0]
+    all_rois = [selected_roi]*data.shape[0]
+
+
+
+    embeddings = torch.tensor(data, dtype=torch.float32)
+    labels = ds['y']
+    labels = torch.from_numpy(np.array(labels.tolist()))
+
+
+
+
+
+    return embeddings,labels,subjects,CIDs,all_rois
+
+def read_fmri(base_path):
+
 
     return rois_all
 #

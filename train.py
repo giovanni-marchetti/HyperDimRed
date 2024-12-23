@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='fmri_sagar' , choices={"gslf","ravia","keller","sagar","fmri_sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -193,17 +193,16 @@ if __name__ == "__main__":
         subjects = np.zeros(data_dist_matrix.shape[0], dtype=int)
         data_dist_matrix = torch.tensor(data_dist_matrix)
         batch_size= 28
-    elif dataset_name in ['fmri_sagar']:
-        data = read_fmri(base_dir+'embeddings/fMRI/odor_responses_S1-3_regionized')
+    elif dataset_name in ['sagar_fmri']:
+        input_embeddings = f'embeddings/{representation_name}/sagar_{representation_name}_embeddings_13_Apr17.csv'
+        embeddings, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
+                                                             input_embeddings,subject_id=subject,selected_roi=roi)
 
         #how to read for one specific subject and one specific area of the brain
         # subject =1 #can be 1,2,3
         # roi = 'APC' # can be
         #(n_stim, n_voxels, n_timecomponents) = data[subject - 1][roi].shape
-        data = data[subject - 1][roi]
-        data = data.max(axis=2)
-        embeddings = torch.tensor(data, dtype=torch.float32)
-        labels = torch.tensor(data, dtype=torch.float32)
+
 
         print('labels', labels.shape)
         print('embeddings', embeddings.shape)
@@ -411,7 +410,7 @@ if __name__ == "__main__":
                 c = ent_array
 
 
-            elif dataset_name == 'sagar': # For sagar for example, with color_by='entropy'
+            elif dataset_name in ['sagar', 'sagar_fmri']: # For sagar for example, with color_by='entropy'
                 scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
                                             dataset.labels.detach().cpu().numpy(), CIDs, labels, subjects=subjects,
                             color_by='entropy', shape_by='none',
@@ -425,15 +424,15 @@ if __name__ == "__main__":
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
 
-            elif dataset_name == 'fmri_sagar': # For sagar for example, with color_by='entropy'
-                scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-                                            dataset.labels.detach().cpu().numpy(), CIDs=1, labels=labels, subjects=np.array([1]),
-                            color_by='input_norm', shape_by='none',
-                            save=True, args=args,
-                            hyperbolic_boundary = normalize)
+            # elif dataset_name == 'fmri_sagar': # For sagar for example, with color_by='entropy'
+            #     scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+            #                                 dataset.labels.detach().cpu().numpy(), CIDs=1, labels=labels, subjects=np.array([1]),
+            #                 color_by='input_norm', shape_by='none',
+            #                 save=True, args=args,
+            #                 hyperbolic_boundary = normalize)
 
-                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
+            #     plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+            #                 losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
 
             elif dataset_name in ['keller']: #['gslf','keller'] # For gslf and keller for example, with color_by='input_norm'
