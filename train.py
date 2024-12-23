@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
-    parser.add_argument('--batch_size', type=int, default=200)
+    parser.add_argument('--batch_size', type=int, default=160)
     parser.add_argument('--num_epochs', type=int, default=200) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
@@ -95,6 +95,8 @@ if __name__ == "__main__":
     parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
     parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
     parser.add_argument('--epsilon', type=float, default=10.0) #
+    parser.add_argument('--roi', type=str, default='PirF',choices=["OFC", "PirF","PirT","AMY"]) #
+    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -126,7 +128,8 @@ if __name__ == "__main__":
     n_neighbors = args.n_neighbors
     epsilon = args.epsilon
     temperature = args.temperature
-
+    subject = args.subject
+    roi = args.roi
     ### Overwrite the batchsize ###
     depth = args.depth
     # args.batch_size = 2 ** args.depth - 1  # to get full batch
@@ -198,11 +201,18 @@ if __name__ == "__main__":
         data = read_fmri(base_dir+'/odor_responses_S1-3_regionized')
 
         #how to read for one specific subject and one specific area of the brain
-        subject =1 #can be 1,2,3
-        roi = 'OFC' # can be "OFC", "PirF","PirT","AMY"
-        fmri_data_y = data[subject - 1][roi]
+        # subject =1 #can be 1,2,3
+        # roi = 'APC' # can be
+        #(n_stim, n_voxels, n_timecomponents) = data[subject - 1][roi].shape
+        data = data[subject - 1][roi]
+        data = data.max(axis=2)
+        embeddings = torch.tensor(data, dtype=torch.float32)
+        labels = torch.tensor(data, dtype=torch.float32)
+
     else:
         raise ValueError('Dataset not recognized')
+    #keep the maximum in the third dimension of data
+
 
     dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
@@ -478,11 +488,11 @@ if __name__ == "__main__":
 
 
             
-            if dataset_name != 'tree':
-                radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
-                corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
-                correlation_coefficients.append(corr)  # Store the correlation coefficient
-                print(correlation_coefficients)
+            # if dataset_name != 'tree':
+            #     radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+            #     corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+            #     correlation_coefficients.append(corr)  # Store the correlation coefficient
+            #     print(correlation_coefficients)
 
 
 
