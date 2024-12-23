@@ -288,7 +288,8 @@ def read_fmri_sagar(base_dir, descriptors, embeddings_perception_csv,subject_id,
     data = rois[selected_roi]
     data = data.max(axis=2)
 
-    subjects=[str(subject_id)]*data.shape[0]
+    subjects=[subject_id]*data.shape[0]
+    subjects = torch.from_numpy(np.array(subjects))
     all_rois = [selected_roi]*data.shape[0]
 
 
