@@ -72,11 +72,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
     parser.add_argument('--batch_size', type=int, default=160)
-<<<<<<< HEAD
     parser.add_argument('--num_epochs', type=int, default=1000) #100
-=======
-    parser.add_argument('--num_epochs', type=int, default=200) #100
->>>>>>> 6ecc0d6aae40be0affa89feeab1e833bd7d43cdf
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.1)
@@ -85,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar","fmri_sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='fmri_sagar' , choices={"gslf","ravia","keller","sagar","fmri_sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -208,6 +204,9 @@ if __name__ == "__main__":
         data = data.max(axis=2)
         embeddings = torch.tensor(data, dtype=torch.float32)
         labels = torch.tensor(data, dtype=torch.float32)
+
+        print('labels', labels.shape)
+        print('embeddings', embeddings.shape)
 
     else:
         raise ValueError('Dataset not recognized')
@@ -425,6 +424,17 @@ if __name__ == "__main__":
                 # For sagar for example, print correlation coefficient between entropy and hyperbolic radius:
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
+
+            elif dataset_name == 'fmri_sagar': # For sagar for example, with color_by='entropy'
+                scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+                                            dataset.labels.detach().cpu().numpy(), CIDs=1, labels=labels, subjects=np.array([1]),
+                            color_by='input_norm', shape_by='none',
+                            save=True, args=args,
+                            hyperbolic_boundary = normalize)
+
+                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
+
 
             elif dataset_name in ['keller']: #['gslf','keller'] # For gslf and keller for example, with color_by='input_norm'
                 scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
