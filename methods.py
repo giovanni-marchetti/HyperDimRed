@@ -92,14 +92,14 @@ class Contrastive(Embedder):
         # temp_pos = 1. #1/temperature
         #todo there is a bug here: IndexError: The shape of the mask [2334, 2334] at index 0 does not match the shape of the indexed tensor [200, 200] at index 0
         pos_loss = ((latent_dist_matrix[positive_pairs] - float(metricity) * data_dist_matrix[
-            positive_pairs]) ** 2).sum() / (temperature)  # with metricity injected
+            positive_pairs]) ** 2).mean() / (temperature)  # with metricity injected
 
         negative_pairs = neighborhood_matrix == 0
         negative_pairs = torch.tensor(negative_pairs)
         # print(negative_pairs.shape)
 
         # neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
-        neg_loss = torch.logsumexp(-(latent_dist_matrix[negative_pairs]) ** 2 / temperature, dim=0)
+        neg_loss = torch.logsumexp(-(latent_dist_matrix[negative_pairs]) ** 2 / temperature, dim=0).mean()
         self.losses_pos.append(pos_loss.item())
         self.losses_neg.append(neg_loss.item())
         loss = pos_loss + neg_loss

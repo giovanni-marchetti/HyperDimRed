@@ -2,3 +2,6 @@
 figs2/
 data/
 results/
+losses/
+__pycache__/
+*.pyc

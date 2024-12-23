@@ -71,23 +71,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
-    parser.add_argument('--batch_size', type=int, default=200)
-    parser.add_argument('--num_epochs', type=int, default=200) #100
+    parser.add_argument('--batch_size', type=int, default=160)
+    parser.add_argument('--num_epochs', type=int, default=1000) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=0.1)
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='fmri_sagar' , choices={"gslf","ravia","keller","sagar","fmri_sagar"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar","fmri_sagar"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare']) #*
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian']) #*
-    parser.add_argument('--distance_method', type=str, default='graph',
+    parser.add_argument('--distance_method', type=str, default='euclidean',
                         choices=['geo', 'graph', 'hamming', 'euclidean','similarity']) #'euclidean' for sagar/keller, 'similarity' for ravia
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
@@ -145,13 +145,13 @@ if __name__ == "__main__":
         ## groundtruth distance from node i to the root of the tree (i.e. shortest path distance from node i to the root): hamming_distance(binary_tree[0], binary_tree[i])
         ## For visualizations, one can color a node by its groundtruth distance to the tree.
     elif dataset_name == 'random':
-        #todo do we need this?
         embeddings = torch.randn(n_samples, dim)
     elif dataset_name in ['gslf', 'keller' , 'sagar']:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
+        # embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
+        #                                      grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False)
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False)
-        
+                                             grand_avg=True if dataset_name == 'keller' else False)        
         #embeddings = 100000 * torch.randn(4983, 20)
         
         #To perform PCA or t-SNE on MolFormer or POM enbeddings:
@@ -164,24 +164,20 @@ if __name__ == "__main__":
         #          init='random', perplexity=1000).fit_transform(labels)
         #X_embedded = PCA(n_components=2).fit_transform(labels)
 
-        print('labels', labels.shape)
-        #print(labels)
-        print('embeddings', embeddings.shape)
 
         # X_embedded = PCA(n_components=20).fit_transform(embeddings)
         # embeddings = torch.tensor(X_embedded, dtype=torch.float32)  # Convert to a PyTorch tensor
 
-        # print('embeddings after PCA', embeddings.shape)
-
-
-        
-        
-        
+        # print('embeddings after PCA', embeddings.shape)       
         
          
 
-        ##embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
-        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        #embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
+        embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+ 
+        print('labels', labels.shape)
+        #print(labels)
+        print('embeddings', embeddings.shape)
 
     elif dataset_name in ['ravia']:
         data_dist_matrix, intensity_labels = prepare_ravia_or_snitz(
@@ -195,7 +191,7 @@ if __name__ == "__main__":
         data_dist_matrix = torch.tensor(data_dist_matrix)
         batch_size= 28
     elif dataset_name in ['fmri_sagar']:
-        data = read_fmri(base_dir+'/odor_responses_S1-3_regionized')
+        data = read_fmri(base_dir+'embeddings/fMRI/odor_responses_S1-3_regionized')
 
         #how to read for one specific subject and one specific area of the brain
         subject =1 #can be 1,2,3
@@ -379,8 +375,10 @@ if __name__ == "__main__":
             print(f'Epoch {i}, loss: {total_loss:.3f}')
             losses.append(total_loss)         
         else:
-            print(f'Epoch {i}, loss: {total_loss / len(data_loader):.3f}')
-            losses.append(total_loss / len(data_loader))
+            # print(f'Epoch {i}, loss: {total_loss / len(data_loader):.3f}')
+            # losses.append(total_loss / len(data_loader))
+            print(f'Epoch {i}, loss: {total_loss :.3f}')
+            losses.append(total_loss)
 
         if i % 10 == 0:  # 1000
             # save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
