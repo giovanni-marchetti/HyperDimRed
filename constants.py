@@ -44,6 +44,26 @@ chemical_features_r=["nCIR",
                      "R8u+",
                      "nRCOSR"]
 
+chemical_features_dragon=["nCIR","ZM1","GNar","S1K","piPC08","MATS1v","MATS7v","GATS1v"
+                          ,
+"EEig05x",
+            "ESpm02x",
+            "ESpm03d",
+            "ESpm10d",
+                 "ESpm13d",
+                 "BELv3",
+                 "RDF035v",
+                          "G1m",
+                          "G1v",
+                            "G1e",
+                            "G3s",
+                            "R8u+",
+                            "nRCOSR"
+
+                          ]
+
+
+
 
 keller_descriptors = ['0.1',
      '1.1',

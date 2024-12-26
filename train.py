@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
-    parser.add_argument('--batch_size', type=int, default=160)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_epochs', type=int, default=200) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -97,6 +97,7 @@ if __name__ == "__main__":
     parser.add_argument('--epsilon', type=float, default=10.0) #
     parser.add_argument('--roi', type=str, default='PirF',choices=["OFC", "PirF","PirT","AMY"]) #
     parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
+    parser.add_argument('--filter_dragon', type=bool, default=True) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -134,6 +135,7 @@ if __name__ == "__main__":
     depth = args.depth
     # args.batch_size = 2 ** args.depth - 1  # to get full batch
     batch_size = args.batch_size
+    filter_dragon = args.filter_dragon
 #    set_seeds(seed)
 
     if distance_method == 'similarity' and dataset_name not in ['ravia']:
@@ -154,7 +156,8 @@ if __name__ == "__main__":
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
                                              grand_avg=True if dataset_name == 'sagar' else False)
-        
+        if filter_dragon:
+            embeddings, labels, subjects, CIDs, embeddings_chemical=read_dragon_features(embeddings, labels, subjects, CIDs)
         #embeddings = 100000 * torch.randn(4983, 20)
         
         #To perform PCA or t-SNE on MolFormer or POM enbeddings:
@@ -184,7 +187,7 @@ if __name__ == "__main__":
          
 
         ##embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
-        embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
 
     elif dataset_name in ['ravia']:
         data_dist_matrix, intensity_labels = prepare_ravia_or_snitz(
@@ -213,7 +216,7 @@ if __name__ == "__main__":
     #keep the maximum in the third dimension of data
 
 
-    dataset = OdorMonoDataset(embeddings, labels, transform=None)
+    dataset = OdorMonoDataset(embeddings_chemical, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 ############
