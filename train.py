@@ -69,18 +69,17 @@ from sklearn.decomposition import PCA
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
-    parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
+    parser.add_argument('--data_type', type=str, default='representation' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
     parser.add_argument('--batch_size', type=int, default=160)
-    parser.add_argument('--num_epochs', type=int, default=1000) #100
+    parser.add_argument('--num_epochs', type=int, default=2001) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.1)
+    parser.add_argument('--lr', type=float, default=0.1) #0.1 fmri
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-
     parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
@@ -93,10 +92,10 @@ if __name__ == "__main__":
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
     parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
-    parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
-    parser.add_argument('--epsilon', type=float, default=10.0) #
-    parser.add_argument('--roi', type=str, default='PirF',choices=["OFC", "PirF","PirT","AMY"]) #
-    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
+    parser.add_argument('--n_neighbors', type=int, default=40) # 20 #10
+    parser.add_argument('--epsilon', type=float, default=0.3) #
+    parser.add_argument('--roi', type=str, default='OFC',choices=["OFC", "PirF","PirT","AMY"]) #
+    parser.add_argument('--subject', type=float, default=2,choices=[1,2,3]) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -175,8 +174,9 @@ if __name__ == "__main__":
         
          
 
-        #embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
-        embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        # # To select subjects for example for sagar:
+        # #embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
+        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
  
         print('labels', labels.shape)
         #print(labels)
@@ -194,9 +194,25 @@ if __name__ == "__main__":
         data_dist_matrix = torch.tensor(data_dist_matrix)
         batch_size= 28
     elif dataset_name in ['sagar_fmri']:
+
+        #print('subject:', subject)
+
         input_embeddings = f'embeddings/{representation_name}/sagar_{representation_name}_embeddings_13_Apr17.csv'
-        embeddings, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
-                                                             input_embeddings,subject_id=subject,selected_roi=roi)
+        print('input_embeddings', input_embeddings)
+        embeddings_all, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
+                                                              input_embeddings,subject_id=subject,selected_roi=roi)
+        
+
+        
+        # # To consider all 4 brain regions:
+        # for roi in ["PirF","PirT","AMY"]:
+        #     embeddings, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
+        #                                                      input_embeddings,subject_id=subject,selected_roi=roi)
+        #     embeddings_all=np.hstack((embeddings_all, embeddings))
+
+        embeddings = embeddings_all
+
+            
 
         #how to read for one specific subject and one specific area of the brain
         # subject =1 #can be 1,2,3
@@ -306,14 +322,14 @@ if __name__ == "__main__":
                 data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
                 #data_dist_matrix = torch.cdist(batch, batch, p=2)
 
-                data_dist_matrix = data_dist_matrix / data_dist_matrix.max()
+                data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
 
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = (data_dist_matrix < epsilon).int()
 
-                print('data_dist_matrix mean', data_dist_matrix.mean())
-                print('data_dist_matrix min', data_dist_matrix.min())
-                print('data_dist_matrix max', data_dist_matrix.max())
+                # print('data_dist_matrix mean', data_dist_matrix.mean())
+                # print('data_dist_matrix min', data_dist_matrix.min())
+                # print('data_dist_matrix max', data_dist_matrix.max())
 
             elif distance_method == 'geo':
                 data_dist_matrix = knn_geodesic_distance_matrix(batch)
@@ -424,27 +440,17 @@ if __name__ == "__main__":
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
                 c = -(entropy * np.log(entropy)).sum(-1)
 
-            # elif dataset_name == 'fmri_sagar': # For sagar for example, with color_by='entropy'
-            #     scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-            #                                 dataset.labels.detach().cpu().numpy(), CIDs=1, labels=labels, subjects=np.array([1]),
-            #                 color_by='input_norm', shape_by='none',
-            #                 save=True, args=args,
-            #                 hyperbolic_boundary = normalize)
-
-            #     plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
-            #                 losses_pos=model.losses_pos if model_name == 'contrastive' else None)
-
 
             elif dataset_name in ['keller']: #['gslf','keller'] # For gslf and keller for example, with color_by='input_norm'
                 scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-                                            dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
+                                            dataset.labels.detach().cpu().numpy(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
                             color_by='input_norm', shape_by='none',
                             save=True, args=args,
                             hyperbolic_boundary = normalize)
                 c = torch.norm(dataset.labels.detach(), dim=-1)
 
             elif dataset_name == 'gslf':
-                # For sagar for example, with color_by='entropy'
+                
                 # scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
                 #                             dataset.labels.detach(), CIDs, labels, subjects=subjects,
                 #             color_by='input_norm', shape_by='none',
@@ -453,61 +459,73 @@ if __name__ == "__main__":
                 #             losses_pos=model.losses_pos if model_name == 'contrastive' else [],
                 #             hyperbolic_boundary = normalize)
                 # c = torch.norm(dataset.labels.detach(), dim=-1)
-                colors = {
-                    # "fruity": "#32CD32",  # Lime Green (top-level fruity category)
-                    # "citrus": "#FFA500",  # Orange (subcategory citrus)
-                    # "berry": "#8A2BE2",  # Blue Violet (subcategory berry)
-                    # "tropical": "#FFD700",  # Gold (subcategory tropical)
-                    "specific": {  # Specific labels mapped to their colors
-                        # "bergamot": "#FFD580",
-                        # "grapefruit": "#FF6347",
-                        # "lemon": "#FFF44F",
-                        "orange": "#FFA500",
-                        # "black currant": "#4B0082",
-                        # "raspberry": "#E30B5D",
-                        "strawberry": "#FF4500",
-                        "banana": "#FFFACD",
-                        "coconut": "#FFE4C4",
-                        # "pineapple": "#FFD700",
-                    },
-                }
-                color_codes= generate_colors_for_labels(labels, colors)
-                # select a subset of molecules based on the labels if needed
-                selected_labels,selected_subjects,selected_embeddings,selected_CIDs,selected_model_embeddings,selected_colors  = select_molecules( labels,
-                                                                     [
-                                                                         # "bergamot", "grapefruit",
-                                                                         #               "lemon",
-                                                                      "orange",
-                                                                                       # "black currant", "raspberry",
-                                                                                       "strawberry",
-                                                                      "banana",
-                                                                                       "coconut",
-                                                                      # "pineapple",
-                                                                                       # "tropical",
-                                                                      # "berry", "citrus",
-                                                                      #                  "fruity"
-                                                                      ],subjects, embeddings,CIDs,model.embeddings,color_codes)
-                #
 
-
-                scatterplot_2d(i, selected_model_embeddings.detach().cpu().numpy(),
-                                            selected_colors, selected_CIDs, selected_labels, subjects=selected_subjects,
-                            color_by='color', shape_by='none',
+                scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
+                                            dataset.labels.detach(), CIDs, labels, subjects=subjects,
+                            color_by='input_norm', shape_by='none',
                             save=True, args=args,
                             hyperbolic_boundary = normalize)
-                c = torch.norm(dataset.labels.detach(), dim=-1)
                 plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
                             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
+                c = torch.norm(dataset.labels.detach(), dim=-1)
+
+
+                # To visualize some classes
+                # colors = {
+                #     # "fruity": "#32CD32",  # Lime Green (top-level fruity category)
+                #     # "citrus": "#FFA500",  # Orange (subcategory citrus)
+                #     # "berry": "#8A2BE2",  # Blue Violet (subcategory berry)
+                #     # "tropical": "#FFD700",  # Gold (subcategory tropical)
+                #     "specific": {  # Specific labels mapped to their colors
+                #         # "bergamot": "#FFD580",
+                #         # "grapefruit": "#FF6347",
+                #         # "lemon": "#FFF44F",
+                #         "orange": "#FFA500",
+                #         # "black currant": "#4B0082",
+                #         # "raspberry": "#E30B5D",
+                #         "strawberry": "#FF4500",
+                #         "banana": "#FFFACD",
+                #         "coconut": "#FFE4C4",
+                #         # "pineapple": "#FFD700",
+                #     },
+                # }
+                # color_codes= generate_colors_for_labels(labels, colors)
+                # # select a subset of molecules based on the labels if needed
+                # selected_labels,selected_subjects,selected_embeddings,selected_CIDs,selected_model_embeddings,selected_colors  = select_molecules( labels,
+                #                                                      [
+                #                                                          # "bergamot", "grapefruit",
+                #                                                          #               "lemon",
+                #                                                       "orange",
+                #                                                                        # "black currant", "raspberry",
+                #                                                                        "strawberry",
+                #                                                       "banana",
+                #                                                                        "coconut",
+                #                                                       # "pineapple",
+                #                                                                        # "tropical",
+                #                                                       # "berry", "citrus",
+                #                                                       #                  "fruity"
+                #                                                       ],subjects, embeddings,CIDs,model.embeddings,color_codes)
+                # #
+
+
+                # scatterplot_2d(i, selected_model_embeddings.detach().cpu().numpy(),
+                #                             selected_colors, selected_CIDs, selected_labels, subjects=selected_subjects,
+                #             color_by='color', shape_by='none',
+                #             save=True, args=args,
+                #             hyperbolic_boundary = normalize)
+                # c = torch.norm(dataset.labels.detach(), dim=-1)
+                # plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                #             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
 
 
 
             
-            # if dataset_name != 'tree':
-            #     radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
-            #     corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
-            #     correlation_coefficients.append(corr)  # Store the correlation coefficient
-            #     print(correlation_coefficients)
+            if dataset_name != 'tree':
+                radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+                corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+                correlation_coefficients.append(corr)  # Store the correlation coefficient
+                print(correlation_coefficients)
 
 
 

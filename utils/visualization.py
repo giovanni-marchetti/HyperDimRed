@@ -94,37 +94,37 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
         raise ValueError('color_by not recognized')
 
 
-    # radius = np.sqrt(np.sum(np.square(latent_embeddings), axis=1))
-    # radius = poincare_distance(torch.from_numpy(latent_embeddings), torch.zeros((1, 2)))
-    # corr = np.corrcoef(radius, c)
-    #print('corr', corr)
+    #radius = np.sqrt(np.sum(np.square(latent_embeddings), axis=1))
+    radius = poincare_distance(torch.from_numpy(latent_embeddings), torch.zeros((1, 2)))
+    corr = np.corrcoef(radius, c)
+    # print('corr', corr)
 
-    # Plotting the correlation
-    # plt.figure(figsize=(10, 6))
-    # plt.scatter(radius, c, color='#6a0dad', alpha=0.7, s=50)  # Scatter plot # edgecolor='k'
-    #
-    # # Calculate the line of best fit
-    # slope, intercept = np.polyfit(radius, c, 1)  # Linear regression
-    # line = slope * radius + intercept  # Calculate the y values for the line
-    #
-    # # Plot the regression line
-    # plt.plot(radius, line, color='#ffbf00', linewidth=2)  # Add the line to the plot
-    #
-    # plt.xlabel('Hyperbolic radius', fontsize=30)
-    # plt.ylabel('Entropy', fontsize=30)
-   # plt.title('Correlation between Radius and Entropy', fontsize=16)  # Added title
-    #plt.grid(True)
+    #Plotting the correlation
+    plt.figure(figsize=(10, 6))
+    plt.scatter(radius, c, color='#6a0dad', alpha=0.7, s=50)  # Scatter plot # edgecolor='k'
+    
+    # Calculate the line of best fit
+    slope, intercept = np.polyfit(radius, c, 1)  # Linear regression
+    line = slope * radius + intercept  # Calculate the y values for the line
+    
+    # Plot the regression line
+    plt.plot(radius, line, color='#ffbf00', linewidth=2)  # Add the line to the plot
+    
+    plt.xlabel('Hyperbolic radius', fontsize=30)
+    plt.ylabel('Entropy', fontsize=30)
+    plt.title('Correlation between Entropy and Radius', fontsize=16)  # Added title
+    plt.grid(True)
     #plt.legend()  # Show legend
-    #plt.tight_layout()  # Adjust layout for better spacing
+    plt.tight_layout()  # Adjust layout for better spacing
 
-    # plt.xticks([])
-    # plt.yticks([])
-    #
-    # #plt.axis('off')
-    #
-    # # Save the figure with 'corr' in the filename
-    # plt.savefig(f'figs2/{i}_corr.png')  # Changed filename to include 'corr'
-    # plt.close()  # Close the plot to avoid display if running in a script
+    plt.xticks([])
+    plt.yticks([])
+    
+    #plt.axis('off')
+    
+    # Save the figure with 'corr' in the filename
+    plt.savefig(f'figs2/{i}_corr.png')  # Changed filename to include 'corr'
+    plt.close()  # Close the plot to avoid display if running in a script
 
 
 
