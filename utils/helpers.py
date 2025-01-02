@@ -8,6 +8,7 @@ import numpy as np
 from constants import *
 import random
 import scipy.io as sio
+from scipy.io import loadmat
 
 def set_seeds(seed):
 
@@ -272,16 +273,21 @@ def read_fmri_sagar(base_dir, descriptors, embeddings_perception_csv,subject_id,
         # roi = np.mean(roi,-1)
         rois[key] = roi
 
-    embeddings =[]
-    CIDs= []
-    subjects = []
-    all_rois = []
+    # embeddings =[]
+    #
+    # subjects = []
+    # all_rois = []
+    mat1 = loadmat(f'data/cid_order/behav_ratings_NEMO0{subject_id}.mat')
+    CIDs = mat1['behav'][0][0]['cid']
+    CIDs = CIDs.squeeze(1)
 
     # sort ds by CID and remove all the those rows that their CID is not in the list of CIDs
     ds = ds.sort_values(by='CID')
     ds = ds[['CID', 'embeddings','y','subject']]
-    ds = ds[ds['CID'].isin(CID_sagar)]
     ds = ds[ds['subject'] == subject_id]
+    ds = ds[ds['CID'].isin(CIDs)]
+
+
 
 
 
