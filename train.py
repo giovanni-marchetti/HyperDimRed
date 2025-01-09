@@ -71,7 +71,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--data_type', type=str, default='representation' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
-    parser.add_argument('--batch_size', type=int, default=160)
+    parser.add_argument('--batch_size', type=int, default=195)
     parser.add_argument('--num_epochs', type=int, default=2001) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
@@ -80,22 +80,24 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-    parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
+
+    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare']) #*
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian']) #*
-    parser.add_argument('--distance_method', type=str, default='euclidean',
+    parser.add_argument('--distance_method', type=str, default='graph',
                         choices=['geo', 'graph', 'hamming', 'euclidean','similarity']) #'euclidean' for sagar/keller, 'similarity' for ravia
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
-    parser.add_argument('--n_neighbors', type=int, default=40) # 20 #10
-    parser.add_argument('--epsilon', type=float, default=0.3) #
-    parser.add_argument('--roi', type=str, default='OFC',choices=["OFC", "PirF","PirT","AMY"]) #
-    parser.add_argument('--subject', type=float, default=2,choices=[1,2,3]) #
+    parser.add_argument('--temperature', type=float, default=0.01)  # 0.1 #100
+    parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
+    parser.add_argument('--epsilon', type=float, default=0.01) #
+    parser.add_argument('--roi', type=str, default='PirF',choices=["OFC", "PirF","PirT","AMY"]) #
+    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
+    parser.add_argument('--filter_dragon', type=bool, default=True) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -133,6 +135,7 @@ if __name__ == "__main__":
     depth = args.depth
     # args.batch_size = 2 ** args.depth - 1  # to get full batch
     batch_size = args.batch_size
+    filter_dragon = args.filter_dragon
 #    set_seeds(seed)
 
     if distance_method == 'similarity' and dataset_name not in ['ravia']:
@@ -151,9 +154,11 @@ if __name__ == "__main__":
     elif dataset_name in ['gslf', 'keller' , 'sagar']:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         # embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-        #                                      grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False)
+        #                                      grand_avg=True if dataset_name == 'keller' else False)
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True if dataset_name == 'keller' else False)        
+                                             grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False) #grand_avg averages among subjects so put false for analyzing each subject individually
+        if filter_dragon:
+            embeddings, labels, subjects, CIDs, embeddings_chemical=read_dragon_features(embeddings, labels, subjects, CIDs)
         #embeddings = 100000 * torch.randn(4983, 20)
         
         #To perform PCA or t-SNE on MolFormer or POM enbeddings:
@@ -228,7 +233,7 @@ if __name__ == "__main__":
     #keep the maximum in the third dimension of data
 
 
-    dataset = OdorMonoDataset(embeddings, labels, transform=None)
+    dataset = OdorMonoDataset(embeddings_chemical, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 ############
@@ -319,10 +324,13 @@ if __name__ == "__main__":
                     data_dist_matrix = scipy.spatial.distance.cdist(batch.detach().numpy(), batch.detach().numpy(), metric='minkowski', p=2)
                 elif data_type == 'labels':
                     data_dist_matrix = scipy.spatial.distance.cdist(label.detach().numpy(), label.detach().numpy(), metric='minkowski', p=2)
+                
                 data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
-                #data_dist_matrix = torch.cdist(batch, batch, p=2)
-
                 data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
+
+                # histo = data_dist_matrix.flatten()
+                # plt.hist(histo, bins=100)
+                # plt.show()
 
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = (data_dist_matrix < epsilon).int()
@@ -375,6 +383,8 @@ if __name__ == "__main__":
 
                 data_dist_matrix = torch.tensor(data_dist_matrix)
                 # data_dist_matrix = data_dist_matrix / data_dist_matrix.max()
+                data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
+
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=n_neighbors,
                                                                mode='connectivity', include_self=False).toarray()

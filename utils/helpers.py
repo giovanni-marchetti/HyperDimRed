@@ -5,7 +5,13 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import ast
 import numpy as np
+
+import sys
+import os
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from constants import *
+
 import random
 import scipy.io as sio
 
@@ -304,11 +310,23 @@ def read_fmri_sagar(base_dir, descriptors, embeddings_perception_csv,subject_id,
 
     return embeddings,labels,subjects,CIDs,all_rois
 
-def read_fmri(base_path):
 
+# def read_dragon_features():
+# 
+# #
 
-    return rois_all
-#
+def read_dragon_features(embeddings, labels,subjects,CIDs):
+    dragon_features = pd.read_csv(f'data/dragon_mat_4868_mols.csv')
+    indices = np.where(np.isin(CIDs.cpu().numpy(), dragon_features['cid'].values))
+    embeddings = embeddings[indices]
+    labels = labels[indices]
+    subjects = subjects[indices]
+    CIDs = CIDs[indices]
+    dragon_features = dragon_features.set_index('cid')
+    dragon_features_selected = dragon_features.loc[CIDs.cpu().numpy()]
+    dragon_features_selected_array = dragon_features_selected.iloc[:, 1:].values
+    embeddings_chemical = torch.tensor(np.asarray(dragon_features_selected_array))
+    return embeddings, labels, subjects, CIDs, embeddings_chemical
 
 
 
