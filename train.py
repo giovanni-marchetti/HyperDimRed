@@ -13,6 +13,7 @@ import uuid
 from utils.helpers import set_seeds
 from sklearn.neighbors import kneighbors_graph
 import scipy
+
 from distances import (
     distance_matrix,
     euclidean_distance,
@@ -81,7 +82,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
     parser.add_argument('--epsilon', type=float, default=0.01) #
     parser.add_argument('--roi', type=str, default='PirF',choices=["OFC", "PirF","PirT","AMY"]) #
-    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
+    parser.add_argument('--subject', type=float, default=2,choices=[1,2,3]) #
     parser.add_argument('--filter_dragon', type=bool, default=True) #
     # args = argparse.Namespace()
     args = parser.parse_args()
@@ -219,6 +220,8 @@ if __name__ == "__main__":
 
             
 
+
+
         #how to read for one specific subject and one specific area of the brain
         # subject =1 #can be 1,2,3
         # roi = 'APC' # can be
@@ -233,7 +236,7 @@ if __name__ == "__main__":
     #keep the maximum in the third dimension of data
 
 
-    dataset = OdorMonoDataset(embeddings_chemical, labels, transform=None)
+    dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
 ############
