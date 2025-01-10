@@ -5,7 +5,13 @@ from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import ast
 import numpy as np
+
+import sys
+import os
+# Add the parent directory to the system path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from constants import *
+
 import random
 import scipy.io as sio
 from scipy.io import loadmat
@@ -257,7 +263,7 @@ def read_fmri_sagar(base_dir, descriptors, embeddings_perception_csv,subject_id,
 
 
 
-    parent_input_sagar_original = f'{base_dir}/odor_responses_S1-3_regionized/odor_responses_S{subject_id}.mat'
+    parent_input_sagar_original = f'{base_dir}embeddings/fMRI/odor_responses_S1-3_regionized/odor_responses_S{subject_id}.mat'
     data1 = sio.loadmat(parent_input_sagar_original)
 
 
