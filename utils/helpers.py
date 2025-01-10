@@ -606,3 +606,9 @@ def generate_colors_for_labels(labels, color_hierarchy):
     - A list of colors corresponding to each row in labels.
     """
     return [get_color_startlow(row, color_hierarchy) for row in labels]
+
+def save_embeddings_npy(embeddings, args, i):
+    np.save(
+        f"results/embeddings_{i}_{args.dataset_name}_{args.data_type}_{args.representation_name}_{args.batch_size}_"
+        f"{args.lr}_{args.seed}_{args.model_name}_{args.latent_dist_fun}_{args.distance_method}_{args.temperature}_{args.n_neighbors}_{args.epsilon}_{args.roi}_{args.subject}.npy",
+        embeddings.detach().cpu().numpy())

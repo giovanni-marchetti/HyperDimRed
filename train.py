@@ -76,12 +76,12 @@ if __name__ == "__main__":
     parser.add_argument('--num_epochs', type=int, default=1001) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.1) #0.1 fmri
+    parser.add_argument('--lr', type=float, default=0.001)
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagarfmri' , choices={"gslf","ravia","keller","sagar","sagarfmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -92,12 +92,12 @@ if __name__ == "__main__":
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=10)  # 0.1 #100
+    parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
     parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
-    parser.add_argument('--epsilon', type=float, default=0.1) #0.01 for chemical data
-    parser.add_argument('--roi', type=str, default='OFC',choices=["OFC", "PirF","PirT","AMY"]) #
-    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
-    parser.add_argument('--filter_dragon', type=bool, default=False) #
+    parser.add_argument('--epsilon', type=float, default=10.0) #
+    parser.add_argument('--roi', type=str, default="PirF",choices=["OFC", "PirF","PirT","AMY",None]) #
+    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3,None]) #
+    parser.add_argument('--filter_dragon', type=bool, default=True) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -150,6 +150,7 @@ if __name__ == "__main__":
         ## groundtruth distance from node i to the root of the tree (i.e. shortest path distance from node i to the root): hamming_distance(binary_tree[0], binary_tree[i])
         ## For visualizations, one can color a node by its groundtruth distance to the tree.
     elif dataset_name == 'random':
+        #todo do we need this?
         embeddings = torch.randn(n_samples, dim)
     elif dataset_name in ['gslf', 'keller' , 'sagar']:
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
@@ -159,6 +160,8 @@ if __name__ == "__main__":
                                              grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False) #grand_avg averages among subjects so put false for analyzing each subject individually
         if filter_dragon:
             embeddings, labels, subjects, CIDs, embeddings_chemical=read_dragon_features(embeddings, labels, subjects, CIDs)
+            args.representation_name = 'chemical'
+            embeddings =  embeddings_chemical
         #embeddings = 100000 * torch.randn(4983, 20)
         
         #To perform PCA or t-SNE on MolFormer or POM enbeddings:
@@ -175,14 +178,14 @@ if __name__ == "__main__":
         # X_embedded = PCA(n_components=20).fit_transform(embeddings)
         # embeddings = torch.tensor(X_embedded, dtype=torch.float32)  # Convert to a PyTorch tensor
 
-        # print('embeddings after PCA', embeddings.shape)       
-        
+        # print('embeddings after PCA', embeddings.shape)
+
          
 
         # # To select subjects for example for sagar:
         # #embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
         # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
- 
+
         print('labels', labels.shape)
         #print(labels)
         print('embeddings', embeddings.shape)
@@ -198,26 +201,11 @@ if __name__ == "__main__":
         subjects = np.zeros(data_dist_matrix.shape[0], dtype=int)
         data_dist_matrix = torch.tensor(data_dist_matrix)
         batch_size= 28
-    elif dataset_name in ['sagar_fmri']:
-
-        #print('subject:', subject)
-
+    elif dataset_name in ['sagarfmri']:
         input_embeddings = f'embeddings/{representation_name}/sagar_{representation_name}_embeddings_13_Apr17.csv'
-        print('input_embeddings', input_embeddings)
-        embeddings_all, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
-                                                              input_embeddings,subject_id=subject,selected_roi=roi)
-        
-
-        
-        # # To consider all 4 brain regions:
-        # for roi in ["PirF","PirT","AMY"]:
-        #     embeddings, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
-        #                                                      input_embeddings,subject_id=subject,selected_roi=roi)
-        #     embeddings_all=np.hstack((embeddings_all, embeddings))
-
-        embeddings = embeddings_all
-
-            
+        embeddings, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
+                                                             input_embeddings,subject_id=subject,selected_roi=roi)
+        args.representation_name = 'fmri'
 
 
 
@@ -226,9 +214,6 @@ if __name__ == "__main__":
         # roi = 'APC' # can be
         #(n_stim, n_voxels, n_timecomponents) = data[subject - 1][roi].shape
 
-
-        print('labels', labels.shape)
-        print('embeddings', embeddings.shape)
 
     else:
         raise ValueError('Dataset not recognized')
@@ -326,7 +311,7 @@ if __name__ == "__main__":
                     data_dist_matrix = scipy.spatial.distance.cdist(batch.detach().numpy(), batch.detach().numpy(), metric='minkowski', p=2)
                 elif data_type == 'labels':
                     data_dist_matrix = scipy.spatial.distance.cdist(label.detach().numpy(), label.detach().numpy(), metric='minkowski', p=2)
-                
+
                 data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
                 data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
 
@@ -462,7 +447,7 @@ if __name__ == "__main__":
                 c = torch.norm(dataset.labels.detach(), dim=-1)
 
             elif dataset_name == 'gslf':
-                
+
                 # scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
                 #                             dataset.labels.detach(), CIDs, labels, subjects=subjects,
                 #             color_by='input_norm', shape_by='none',
@@ -525,19 +510,23 @@ if __name__ == "__main__":
                 #             color_by='color', shape_by='none',
                 #             save=True, args=args,
                 #             hyperbolic_boundary = normalize)
-                # c = torch.norm(dataset.labels.detach(), dim=-1)
+                c = torch.norm(dataset.labels.detach(), dim=-1)
                 # plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
                 #             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
 
 
 
-            
-            if dataset_name != 'tree':
-                radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
-                corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
-                correlation_coefficients.append(corr)  # Store the correlation coefficient
-                print(correlation_coefficients)
+
+
+
+            # if dataset_name != 'tree':
+            #     radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+            #     corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+            #     correlation_coefficients.append(corr)  # Store the correlation coefficient
+            #     print(correlation_coefficients)
+        if i % 50 == 0:
+            save_embeddings_npy(model.embeddings, args, i)
 
 
 

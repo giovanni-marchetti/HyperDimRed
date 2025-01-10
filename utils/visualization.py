@@ -1,4 +1,6 @@
 # scattorplot of 2d visualizations
+import time
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn import manifold
@@ -187,6 +189,7 @@ def save_embeddings(i, args, latent_embeddings, losses=[], losses_pos=[], losses
     np.save(
         f"results/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_embeddings.npy",
         latent_embeddings)
+
     np.save(
         f"results/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.random_string}_{i}_{args.seed}_{args.dataset_name}_losses.npy",
         losses)
