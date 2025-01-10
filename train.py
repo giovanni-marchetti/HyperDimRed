@@ -98,7 +98,7 @@ if __name__ == "__main__":
     parser.add_argument('--epsilon', type=float, default=10.0) #
     parser.add_argument('--roi', type=str, default="PirF",choices=["OFC", "PirF","PirT","AMY",None]) #
     parser.add_argument('--subject', type=float, default=1,choices=[1,2,3,None]) #
-    parser.add_argument('--filter_dragon', type=bool, default=False) #
+    parser.add_argument('--filter_dragon', type=bool, default=True) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -510,7 +510,7 @@ if __name__ == "__main__":
                 #             color_by='color', shape_by='none',
                 #             save=True, args=args,
                 #             hyperbolic_boundary = normalize)
-                # c = torch.norm(dataset.labels.detach(), dim=-1)
+                c = torch.norm(dataset.labels.detach(), dim=-1)
                 # plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
                 #             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
@@ -520,13 +520,13 @@ if __name__ == "__main__":
 
 
 
-            if dataset_name != 'tree':
-                radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
-                corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
-                correlation_coefficients.append(corr)  # Store the correlation coefficient
-                print(correlation_coefficients)
-
-        save_embeddings_npy(embeddings, args, i)
+            # if dataset_name != 'tree':
+            #     radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+            #     corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+            #     correlation_coefficients.append(corr)  # Store the correlation coefficient
+            #     print(correlation_coefficients)
+        if i % 50 == 0:
+            save_embeddings_npy(model.embeddings, args, i)
 
 
 
