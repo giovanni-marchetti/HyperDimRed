@@ -162,6 +162,7 @@ if __name__ == "__main__":
         if filter_dragon:
             embeddings, labels, subjects, CIDs, embeddings_chemical=read_dragon_features(embeddings, labels, subjects, CIDs)
             args.representation_name = 'chemical'
+            embeddings =  embeddings_chemical
         #embeddings = 100000 * torch.randn(4983, 20)
         
         #To perform PCA or t-SNE on MolFormer or POM enbeddings:
