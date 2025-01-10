@@ -70,10 +70,10 @@ from sklearn.decomposition import PCA
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
-    parser.add_argument('--data_type', type=str, default='representation' , choices={"representation","labels"}) #label or batch
+    parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
     parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
     parser.add_argument('--batch_size', type=int, default=195)
-    parser.add_argument('--num_epochs', type=int, default=2001) #100
+    parser.add_argument('--num_epochs', type=int, default=1001) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
     parser.add_argument('--lr', type=float, default=0.1) #0.1 fmri
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-    parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagar' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -92,8 +92,8 @@ if __name__ == "__main__":
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
-    parser.add_argument('--n_neighbors', type=int, default=40) # 20 #10
+    parser.add_argument('--temperature', type=float, default=10)  # 0.1 #100
+    parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
     parser.add_argument('--epsilon', type=float, default=0.1) #0.01 for chemical data
     parser.add_argument('--roi', type=str, default='OFC',choices=["OFC", "PirF","PirT","AMY"]) #
     parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
