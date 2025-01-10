@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
-    parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"})
+    parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"}) #label or batch
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--num_epochs', type=int, default=200) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
 
-    parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='sagarfmri' , choices={"gslf","ravia","keller","sagar","sagarfmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
@@ -96,9 +96,9 @@ if __name__ == "__main__":
     parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
     parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
     parser.add_argument('--epsilon', type=float, default=10.0) #
-    parser.add_argument('--roi', type=str, default='PirF',choices=["OFC", "PirF","PirT","AMY"]) #
-    parser.add_argument('--subject', type=float, default=2,choices=[1,2,3]) #
-    parser.add_argument('--filter_dragon', type=bool, default=True) #
+    parser.add_argument('--roi', type=str, default="PirF",choices=["OFC", "PirF","PirT","AMY",None]) #
+    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3,None]) #
+    parser.add_argument('--filter_dragon', type=bool, default=False) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -159,6 +159,7 @@ if __name__ == "__main__":
                                              grand_avg=True if dataset_name == 'sagar' else False)
         if filter_dragon:
             embeddings, labels, subjects, CIDs, embeddings_chemical=read_dragon_features(embeddings, labels, subjects, CIDs)
+            args.representation_name = 'chemical'
         #embeddings = 100000 * torch.randn(4983, 20)
         
         #To perform PCA or t-SNE on MolFormer or POM enbeddings:
@@ -201,10 +202,11 @@ if __name__ == "__main__":
         subjects = np.zeros(data_dist_matrix.shape[0], dtype=int)
         data_dist_matrix = torch.tensor(data_dist_matrix)
         batch_size= 28
-    elif dataset_name in ['sagar_fmri']:
+    elif dataset_name in ['sagarfmri']:
         input_embeddings = f'embeddings/{representation_name}/sagar_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels, subjects, CIDs,rois = read_fmri_sagar(base_dir, select_descriptors(dataset_name),
                                                              input_embeddings,subject_id=subject,selected_roi=roi)
+        args.representation_name = 'fmri'
 
 
 
@@ -492,12 +494,16 @@ if __name__ == "__main__":
 
 
 
+
+
             
             # if dataset_name != 'tree':
             #     radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
             #     corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
             #     correlation_coefficients.append(corr)  # Store the correlation coefficient
             #     print(correlation_coefficients)
+
+        save_embeddings_npy(embeddings, args, i)
 
 
 
