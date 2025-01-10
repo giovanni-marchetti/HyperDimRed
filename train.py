@@ -81,24 +81,23 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-
     parser.add_argument('--dataset_name', type=str, default='sagar_fmri' , choices={"gslf","ravia","keller","sagar","sagar_fmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
     parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
     parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare']) #*
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian']) #*
-    parser.add_argument('--distance_method', type=str, default='graph',
+    parser.add_argument('--distance_method', type=str, default='euclidean',
                         choices=['geo', 'graph', 'hamming', 'euclidean','similarity']) #'euclidean' for sagar/keller, 'similarity' for ravia
     parser.add_argument('--n_samples', type=int, default=4000)
     parser.add_argument('--dim', type=int, default=768)
     parser.add_argument('--depth', type=int, default=5)  # Changed from bool to int
-    parser.add_argument('--temperature', type=float, default=0.01)  # 0.1 #100
-    parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
-    parser.add_argument('--epsilon', type=float, default=0.01) #
-    parser.add_argument('--roi', type=str, default='PirF',choices=["OFC", "PirF","PirT","AMY"]) #
-    parser.add_argument('--subject', type=float, default=2,choices=[1,2,3]) #
-    parser.add_argument('--filter_dragon', type=bool, default=True) #
+    parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
+    parser.add_argument('--n_neighbors', type=int, default=40) # 20 #10
+    parser.add_argument('--epsilon', type=float, default=0.1) #0.01 for chemical data
+    parser.add_argument('--roi', type=str, default='OFC',choices=["OFC", "PirF","PirT","AMY"]) #
+    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3]) #
+    parser.add_argument('--filter_dragon', type=bool, default=False) #
     # args = argparse.Namespace()
     args = parser.parse_args()
 
