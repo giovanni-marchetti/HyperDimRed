@@ -202,9 +202,10 @@ def save_embeddings(i, args, latent_embeddings, losses=[], losses_pos=[], losses
 
 
 
-def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3, reduction_method=None, perplexity=None):
+def pom_frame(pom_embeds, y, required_desc, title, size1, size2, size3, reduction_method=None, perplexity=None):
     sns.set_style("ticks")
     sns.despine()
+    plt.rcParams["font.size"] = 35
 
     # pom_embeds = model.predict_embedding(dataset)
     # y_preds = model.predict(dataset)
@@ -237,6 +238,8 @@ def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3, red
                                      metric='euclidean').fit_transform(X=pom_embeds)
     elif reduction_method is None:
         reduced_features = pom_embeds
+        reduction_method = 'None'
+
     else:
         raise ValueError('Invalid reduction method')
 
@@ -297,3 +300,4 @@ def pom_frame(pom_embeds, y, dir, required_desc, title, size1, size2, size3, red
 
     # plt.show()
     # plt.close()
+
