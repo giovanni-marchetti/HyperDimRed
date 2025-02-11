@@ -28,8 +28,8 @@ def plot_losses(i, args=None, save=False, losses=None,
     fig, ax = plt.subplots(2, 1, figsize=(30, 90), sharey=False)
     ax[0].plot(np.arange(len(losses)), losses, label='total')
 
-    ax[0].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
-    ax[1].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
+    ## ax[0].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
+    ## ax[1].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
 
     fig.subplots_adjust(hspace=0.3)
     # showing the legend
@@ -74,6 +74,8 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
         raise ValueError('shape_by not recognized')
 
     if color_by=='input_norm':
+        # if isinstance(input_embeddings, np.ndarray):
+        #     input_embeddings = torch.from_numpy(input_embeddings)
         c = torch.norm(input_embeddings, dim=-1)
     elif color_by=='entropy':
         entropy = softmax(input_embeddings, -1)

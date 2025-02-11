@@ -30,11 +30,14 @@ class Embedder(torch.nn.Module):
     def __init__(self, data_size, latent_dim, latent_dist_fun=euclidean_distance, distr='gaussian'):
         super().__init__()
         if distr == 'gaussian':
-            self.embeddings = sigma * torch.randn((data_size, latent_dim), requires_grad=True)  # Gaussian
+            with torch.no_grad():
+                self.embeddings = sigma * torch.randn((data_size, latent_dim), requires_grad=True)  # Gaussian
+                self.embeddings = torch.nn.Parameter(self.embeddings, requires_grad = True)###
             # self.embeddings = torch.rand((data_size, latent_dim), requires_grad=True) #Uniform
 
         if distr == 'hypergaussian':
-            self.embeddings = exp_map(sigma * torch.randn((data_size, latent_dim), requires_grad=True))
+            with torch.no_grad():
+                self.embeddings = exp_map(sigma * torch.randn((data_size, latent_dim), requires_grad=True))
 
         self.latent_dist_fun = latent_dist_fun
         self.data_size = data_size
@@ -90,9 +93,11 @@ class Contrastive(Embedder):
         # pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
 
         # temp_pos = 1. #1/temperature
-        #todo there is a bug here: IndexError: The shape of the mask [2334, 2334] at index 0 does not match the shape of the indexed tensor [200, 200] at index 0
         pos_loss = ((latent_dist_matrix[positive_pairs] - float(metricity) * data_dist_matrix[
             positive_pairs]) ** 2).mean() / (temperature)  # with metricity injected
+
+        # pos_loss = ((latent_dist_matrix[positive_pairs] - float(metricity) * data_dist_matrix[
+        #     positive_pairs]).sum() ** 2) / (temperature)  # with metricity injected
 
         negative_pairs = neighborhood_matrix == 0
         negative_pairs = torch.tensor(negative_pairs)
@@ -100,6 +105,7 @@ class Contrastive(Embedder):
 
         # neg_loss = torch.logsumexp(-latent_dist_matrix[negative_pairs]/temperature, dim=0)
         neg_loss = torch.logsumexp(-(latent_dist_matrix[negative_pairs]) ** 2 / temperature, dim=0).mean()
+        #neg_loss = torch.logsumexp(-(latent_dist_matrix[negative_pairs]) ** 2 / temperature, dim=0).sum()
         self.losses_pos.append(pos_loss.item())
         self.losses_neg.append(neg_loss.item())
         loss = pos_loss + neg_loss

@@ -32,7 +32,7 @@ def hamming_distance(x: np.ndarray, y: np.ndarray) -> int:
     """Compute Hamming distance between x and y."""
     return (x.astype(np.int32) ^ y.astype(np.int32)).sum()
 
-def knn_geodesic_distance_matrix(data: np.ndarray, n_neighbors: int = 3) -> torch.Tensor:
+def knn_geodesic_distance_matrix(data: np.ndarray, n_neighbors: int = 20) -> torch.Tensor:
     """Compute geodesic distance matrix using k-nearest neighbors."""
     data_nn_matrix = kneighbors_graph(data, n_neighbors, mode='connectivity', include_self=False)
     data_dist_matrix = data_nn_matrix.toarray()
