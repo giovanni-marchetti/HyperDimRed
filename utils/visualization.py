@@ -28,15 +28,15 @@ def plot_losses(i, args=None, save=False, losses=None,
     fig, ax = plt.subplots(2, 1, figsize=(30, 90), sharey=False)
     ax[0].plot(np.arange(len(losses)), losses, label='total')
 
-    ax[0].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
-    ax[1].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
+    # ax[0].plot(np.arange(len(losses_pos)), losses_pos, label='positive')
+    # ax[1].plot(np.arange(len(losses_neg)), losses_neg, label='negative')
 
     fig.subplots_adjust(hspace=0.3)
     # showing the legend
     ax[0].legend()
     ax[1].legend()
     plt.title(
-        f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
+        f'dataset_name={args.dataset_name}, lr = {args.lr}, latent_dim = {args.latent_dim}, epochs = {args.num_epochs}, \n batch_size = {args.batch_size}, normalize = {args.normalize}, distance_method = {args.distance_method},\n  model = {args.model_name}, optimizer = {args.optimizer_type}, latent_dist_fun = {args.latent_dist_fun} \n temperature = {args.temperature}, depth = {args.depth}')
     f_path = f"losses/{args.dataset_name}/{args.distance_method}/{args.latent_dist_fun}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.epsilon}/{args.batch_size}"
     # create a folder if it does not exist
     if save:

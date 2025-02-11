@@ -30,11 +30,15 @@ class Embedder(torch.nn.Module):
     def __init__(self, data_size, latent_dim, latent_dist_fun=euclidean_distance, distr='gaussian'):
         super().__init__()
         if distr == 'gaussian':
-            self.embeddings = sigma * torch.randn((data_size, latent_dim), requires_grad=True)  # Gaussian
-            # self.embeddings = torch.rand((data_size, latent_dim), requires_grad=True) #Uniform
+            with torch.no_grad():
+                self.embeddings = sigma * torch.randn((data_size, latent_dim), requires_grad=True)  # Gaussian
+                # self.embeddings = torch.nn.Parameter(self.embeddings, requires_grad = True)###
+                self.embeddings = torch.rand((data_size, latent_dim), requires_grad=True) #Uniform
+                self.embeddings = torch.nn.Parameter(self.embeddings)
 
         if distr == 'hypergaussian':
-            self.embeddings = exp_map(sigma * torch.randn((data_size, latent_dim), requires_grad=True))
+            with torch.no_grad():
+                self.embeddings = exp_map(sigma * torch.randn((data_size, latent_dim), requires_grad=True))
 
         self.latent_dist_fun = latent_dist_fun
         self.data_size = data_size
@@ -43,13 +47,13 @@ class Embedder(torch.nn.Module):
         if normalization:
             with torch.no_grad():
                 norms = vector_norm(self.embeddings, dim=-1).unsqueeze(-1)
-                self.embeddings = torch.where(norms < 1, self.embeddings, self.embeddings / (norms + EPS))
+                self.embeddings.data = torch.where(norms < 1, self.embeddings, self.embeddings / (norms + EPS))
                 self.embeddings.requires_grad = True
                 self.embeddings.retain_grad()
         else:
             with torch.no_grad():
                 norms = vector_norm(self.embeddings, dim=-1).unsqueeze(-1)
-                self.embeddings = torch.where(norms < 1, self.embeddings, self.embeddings / 1)
+                self.embeddings.data = torch.where(norms < 1, self.embeddings, self.embeddings / 1)
                 self.embeddings.requires_grad = True
                 self.embeddings.retain_grad()
 
@@ -90,7 +94,6 @@ class Contrastive(Embedder):
         # pos_loss = latent_dist_matrix[positive_pairs].sum()/temperature
 
         # temp_pos = 1. #1/temperature
-        #todo there is a bug here: IndexError: The shape of the mask [2334, 2334] at index 0 does not match the shape of the indexed tensor [200, 200] at index 0
         pos_loss = ((latent_dist_matrix[positive_pairs] - float(metricity) * data_dist_matrix[
             positive_pairs]) ** 2).mean() / (temperature)  # with metricity injected
 

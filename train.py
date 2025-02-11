@@ -13,6 +13,7 @@ import uuid
 from utils.helpers import set_seeds
 from sklearn.neighbors import kneighbors_graph
 import scipy
+from torch.optim import Adam
 
 from distances import (
     distance_matrix,
@@ -71,21 +72,20 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
-    parser.add_argument('--representation_name', type=str, default='molformer', choices={"molformer","pom"}) #label or batch
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--num_epochs', type=int, default=200) #100
+    parser.add_argument('--representation_name', type=str, default='pom', choices={"molformer","pom"})
+    parser.add_argument('--batch_size', type=int, default=195) #195
+    parser.add_argument('--num_epochs', type=int, default=5001) #100
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--lr', type=float, default=0.0001)
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-
-    parser.add_argument('--dataset_name', type=str, default='sagarfmri' , choices={"gslf","ravia","keller","sagar","sagarfmri"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"gslf","ravia","keller","sagar","sagarfmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
-    parser.add_argument('--optimizer', type=str, default='poincare', choices=['standard', 'poincare']) #*
-    parser.add_argument('--model_name', type=str, default='contrastive', choices=['isomap', 'mds', 'contrastive'])
+    parser.add_argument('--optimizer_type', type=str, default='AdamOptim', choices=['standard', 'poincare', 'Adam', 'AdamOptim','sgd']) #*
+    parser.add_argument('--model_name', type=str, default='mds', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare']) #*
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian']) #*
     parser.add_argument('--distance_method', type=str, default='euclidean',
@@ -96,9 +96,9 @@ if __name__ == "__main__":
     parser.add_argument('--temperature', type=float, default=0.1)  # 0.1 #100
     parser.add_argument('--n_neighbors', type=int, default=20) # 20 #10
     parser.add_argument('--epsilon', type=float, default=10.0) #
-    parser.add_argument('--roi', type=str, default="PirF",choices=["OFC", "PirF","PirT","AMY",None]) #
-    parser.add_argument('--subject', type=float, default=1,choices=[1,2,3,None]) #
-    parser.add_argument('--filter_dragon', type=bool, default=True) #
+    parser.add_argument('--roi', type=str, default=None,choices=["OFC", "PirF","PirT","AMY",None]) #
+    parser.add_argument('--subject', type=float, default=None,choices=[1,2,3,None]) #
+    parser.add_argument('--filter_dragon', type=bool, default=False) #for chemical data
     # args = argparse.Namespace()
     args = parser.parse_args()
 
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     lr = args.lr
     seed = args.seed
     base_dir = args.base_dir
-    optimizer = args.optimizer
+    optimizer_type = args.optimizer_type
     model_name = args.model_name
     latent_dist_fun = args.latent_dist_fun
     distr = args.distr
@@ -153,12 +153,15 @@ if __name__ == "__main__":
     elif dataset_name == 'random':
         #todo do we need this?
         embeddings = torch.randn(n_samples, dim)
-    elif dataset_name in ['gslf', 'keller' , 'sagar']:
+    elif dataset_name in ['gslf', 'keller' , 'sagar']: ### If multiple subjects, to average among them put grand_avg=True. If individual subjects then put grand_avg=False and below use select_subjects function
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
-        # embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-        #                                      grand_avg=True if dataset_name == 'keller' else False)
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False) #grand_avg averages among subjects so put false for analyzing each subject individually
+                                             grand_avg=True if (dataset_name == 'keller' or (dataset_name == 'saagar' and subject==None)) else False)
+        # embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
+        #                                      grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False) #grand_avg averages among subjects so put false for analyzing each subject individually
+        # embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
+        #                                      grand_avg=True if dataset_name=='sagar' else False)
+
         if filter_dragon:
             embeddings, labels, subjects, CIDs, embeddings_chemical=read_dragon_features(embeddings, labels, subjects, CIDs)
             args.representation_name = 'chemical'
@@ -182,10 +185,10 @@ if __name__ == "__main__":
         # print('embeddings after PCA', embeddings.shape)
 
          
-
-        # # To select subjects for example for sagar:
-        # #embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
-        # embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=3,n_subject=None)
+        if subject != None:
+            # # Individual subects use a line below, otherwise comment it. To select subjects for example for sagar:
+            # #embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=[1,2,3],n_subject=None) # ,subject_id=None,n_subject=3)
+            embeddings, labels, CIDs, subjects = select_subjects(subjects, embeddings, labels, CIDs,subjects.unique(),subject_id=subject, n_subject=None)
 
         print('labels', labels.shape)
         #print(labels)
@@ -214,6 +217,11 @@ if __name__ == "__main__":
         # subject =1 #can be 1,2,3
         # roi = 'APC' # can be
         #(n_stim, n_voxels, n_timecomponents) = data[subject - 1][roi].shape
+
+
+        print('labels', labels.shape)
+        #print(labels)
+        print('embeddings', embeddings.shape)
 
 
     else:
@@ -271,10 +279,17 @@ if __name__ == "__main__":
         raise ValueError('Model not recognized')
     model = model.to(args.device)
 
-    if optimizer == 'standard':
+    if optimizer_type == 'standard':
         optimizer = StandardOptim(model, lr=lr)
-    elif optimizer == 'poincare':
+    elif optimizer_type == 'sgd':
+        optimizer = torch.optim.SGD([model.embeddings], lr=lr)
+    elif optimizer_type == 'poincare':
         optimizer = PoincareOptim(model, lr=lr)
+    elif optimizer_type == 'Adam':
+        optimizer = Adam([model.embeddings], lr=lr)
+    elif optimizer_type=='AdamOptim':
+        optimizer = AdamOptim(model, lr=lr)
+        # optimizer = Adam(model.embeddings, lr= lr)
     else:
         raise ValueError('Optimizer not recognized')
 
@@ -314,7 +329,12 @@ if __name__ == "__main__":
                     data_dist_matrix = scipy.spatial.distance.cdist(label.detach().numpy(), label.detach().numpy(), metric='minkowski', p=2)
 
                 data_dist_matrix = torch.tensor(data_dist_matrix, dtype=torch.float32)
-                data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
+
+                # data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
+
+                ###%%%%%%%%%#########
+                data_dist_matrix = 5.0*(data_dist_matrix / data_dist_matrix.max()) # 5.0 good for individual subjects
+
 
                 # histo = data_dist_matrix.flatten()
                 # plt.hist(histo, bins=100)
@@ -328,9 +348,14 @@ if __name__ == "__main__":
                 # print('data_dist_matrix max', data_dist_matrix.max())
 
             elif distance_method == 'geo':
-                data_dist_matrix = knn_geodesic_distance_matrix(batch)
+                if data_type == 'representation':
+                    data_dist_matrix = knn_geodesic_distance_matrix(batch)
+                elif data_type == 'labels':
+                    data_dist_matrix = knn_geodesic_distance_matrix(label)
+
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = (data_dist_matrix <= 1.01).to(torch.int)
+
             elif distance_method == 'hamming':
                 #todo: check and fix this
                 data_dist_matrix = hamming_distance_matrix(batch)
@@ -339,6 +364,7 @@ if __name__ == "__main__":
                     data_binary_dist_matrix = torch.tensor(data_binary_dist_matrix)
                     
                 data_dist_matrix = torch.tensor(data_dist_matrix)
+
             elif distance_method == 'euclidean':
                 #data_dist_matrix = scipy.spatial.distance.cdist(batch, batch, metric='euclidean')
                 #data_dist_matrix = scipy.spatial.distance.cdist(label, label, metric='euclidean')
@@ -370,13 +396,19 @@ if __name__ == "__main__":
                 #data_dist_matrix = scipy.spatial.distance.cdist(embeddings, embeddings, metric='euclidean')
 
                 data_dist_matrix = torch.tensor(data_dist_matrix)
+
                 # data_dist_matrix = data_dist_matrix / data_dist_matrix.max()
-                data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
+                # data_dist_matrix = 0.8*(data_dist_matrix / data_dist_matrix.max())
+
+                ######%%%%%%%%%%%%%%%##########
+                ###data_dist_matrix = 5.0*(data_dist_matrix / data_dist_matrix.max()) # 5.0 good for Sagar individual subjects
+
 
                 if model_name == 'contrastive':
                     data_binary_dist_matrix = kneighbors_graph(data_dist_matrix, n_neighbors=n_neighbors,
                                                                mode='connectivity', include_self=False).toarray()
-        
+
+
             
             elif distance_method == 'similarity':
                 if model_name == 'contrastive':
@@ -391,10 +423,18 @@ if __name__ == "__main__":
             optimizer.zero_grad()
 
 
-            #todo: how to make this case general so it works when model_name is isomap or mds (data_binary_dist_matrix?)
-            loss = model.loss_fun(data_dist_matrix, idx, data_binary_dist_matrix, temperature)
+            if model_name == 'contrastive':
+                loss = model.loss_fun(data_dist_matrix, idx, data_binary_dist_matrix, temperature) #for contrastive
+            elif model_name == 'mds':
+                loss = model.loss_fun(data_dist_matrix, idx)
             loss.backward()
-            optimizer.step(idx)
+            # print('grad', all(p.grad is None for p in model.embeddings))
+            model_embeddings_old = model.embeddings.clone()
+            if optimizer_type == 'Adam' or optimizer_type == 'sgd':
+                optimizer.step()
+            else:
+                optimizer.step(idx)
+
             total_loss += loss.item()
 
         if dataset_name == 'tree':
@@ -424,15 +464,15 @@ if __name__ == "__main__":
                 c = ent_array
 
 
-            elif dataset_name in ['sagar', 'sagar_fmri']: # For sagar for example, with color_by='entropy'
+            elif dataset_name in ['sagar', 'sagarfmri']: # For sagar for example, with color_by='entropy'
                 scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-                                            dataset.labels.detach().cpu().numpy(), CIDs, labels, subjects=subjects,
+                                            dataset.labels.detach(), CIDs, labels, subjects=subjects,
                             color_by='entropy', shape_by='none',
                             save=True, args=args,
                             hyperbolic_boundary = normalize)
 
-                plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
-                            losses_pos=model.losses_pos if model_name == 'contrastive' else None)
+                # plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
+                #             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
                 # For sagar for example, print correlation coefficient between entropy and hyperbolic radius:
                 entropy = softmax(dataset.labels.detach().cpu().numpy(), -1)
@@ -441,7 +481,7 @@ if __name__ == "__main__":
 
             elif dataset_name in ['keller']: #['gslf','keller'] # For gslf and keller for example, with color_by='input_norm'
                 scatterplot_2d(i, model.embeddings.detach().cpu().numpy(),
-                                            dataset.labels.detach().cpu().numpy(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
+                                            dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
                             color_by='input_norm', shape_by='none',
                             save=True, args=args,
                             hyperbolic_boundary = normalize)
@@ -521,11 +561,11 @@ if __name__ == "__main__":
 
 
 
-            # if dataset_name != 'tree':
-            #     radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
-            #     corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
-            #     correlation_coefficients.append(corr)  # Store the correlation coefficient
-            #     print(correlation_coefficients)
+            if dataset_name != 'tree':
+                radius = poincare_distance(model.embeddings.detach().cpu(), torch.zeros((1, 2)))
+                corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
+                correlation_coefficients.append(corr)  # Store the correlation coefficient
+                print(correlation_coefficients)
         if i % 50 == 0:
             save_embeddings_npy(model.embeddings, args, i)
 
