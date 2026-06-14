@@ -13,7 +13,7 @@ import scipy
 import torch
 import os
 import matplotlib
-from distances import poincare_distance
+from distances import poincare_distance, project_to_poincare_disk_for_viz, cross_distance_matrix_for_viz, hyperbolic_kde_for_viz, estimate_hyperbolic_bandwidth_for_viz, hyperbolic_area_element_for_viz
 plt.rcParams["font.size"] = 45
 plt.rcParams['agg.path.chunksize'] = 10000
 
@@ -50,14 +50,14 @@ def plot_losses(i, args=None, save=False, losses=None,
     else:
         plt.show()
 def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subjects=None, color_by='entropy', shape_by='none', args=None, save=False, plot_edges=False,
-                    hyperbolic_boundary=True):
+                    hyperbolic_boundary=True, saving_path='figs2'):
     color_map = 'plasma'
     #
     # data_dist_matrix = scipy.spatial.distance.cdist(input_embeddings, input_embeddings, metric='hamming') * \
     #                    input_embeddings.shape[-1]
 
     # f_path = f"figs2/{args.dataset_name}/{args.lr}/{args.temperature}/{args.n_neighbors}/"
-    f_path = f"figs2/{args.dataset_name}/{args.distance_method}/{args.latent_dist_fun}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.epsilon}/{args.batch_size}"
+    f_path = f"{saving_path}/{args.dataset_name}/{args.distance_method}/{args.latent_dist_fun}/{args.lr}/{args.temperature}/{args.n_neighbors}/{args.epsilon}/{args.batch_size}"
     fig, ax = plt.subplots(1, 1, figsize=(30, 30), sharey=False)
     markers = ["o", "s", "D", "P", "X", "v", ">", "<", "^", "d", "p", "*", "h", "H", "+", "x", "|", "_"]
     if shape_by=='subject':
@@ -125,7 +125,7 @@ def scatterplot_2d(i, latent_embeddings, input_embeddings, CIDs, labels, subject
     #plt.axis('off')
     
     # Save the figure with 'corr' in the filename
-    plt.savefig(f'figs2/{i}_corr.png')  # Changed filename to include 'corr'
+    plt.savefig(f'{saving_path}/{i}_corr.png')  # Changed filename to include 'corr'
     plt.close()  # Close the plot to avoid display if running in a script
 
 
@@ -300,4 +300,441 @@ def pom_frame(pom_embeds, y, required_desc, title, size1, size2, size3, reductio
 
     # plt.show()
     # plt.close()
+    
+    
+    
+    
+    
+# islands visualization handling both Euclidean and Hyperbolic cases
+def viz_frame_probamass(
+    i,
+    embeds,
+    y,
+    required_desc,
+    title,
+    size1,
+    size2,
+    size3,
+    type1=None,
+    type2=None,
+    type3=None,
+    reduction_method=None,
+    perplexity=None,
+    target_mass_main=0.8,
+    target_mass_sub=0.5,
+    islands_alpha=0.65,
+    space='euclidean',
+    bandwidth_scale=1.0,
+    forced_bandwidth=None,
+    grid_res=500,
+    euclidean_grid_padding=0.05,
+    show_embeddings=True,
+    embedding_dot_size=2,
+    embedding_dot_alpha=0.4,
+    embedding_dot_color="black",
+    embedding_dot_zorder=1
+):
 
+    if space not in ['euclidean', 'poincare']:
+        raise ValueError("space must be either 'euclidean' or 'poincare'")
+
+    sns.set_style("ticks")
+    sns.despine()
+    plt.rcParams["font.size"] = 35
+
+    if type1 == None:
+        type1 = {
+            'floral': '#F3F1F7',
+            'subs': {
+                'muguet': '#FAD7E6',
+                'lavender': '#8883BE',
+                'jasmin': '#BD81B7'
+            }
+        }
+
+    if type2 == None:
+        type2 = {
+            'meaty': '#F5EBE8',
+            'subs': {
+                'savory': '#FBB360',
+                'beefy': '#7B382A',
+                'roasted': '#F7A69E'
+            }
+        }
+
+    if type3 == None:
+        type3 = {
+            'ethereal': '#F2F6EC',
+            'subs': {
+                'cognac': '#BCE2D2',
+                'fermented': '#79944F',
+                'alcoholic': '#C2DA8F'
+            }
+        }
+
+    # ------------------------------------------------------------
+    # 1. Prepare / reduce features
+    # ------------------------------------------------------------
+
+    if space == 'poincare':
+        # In Poincaré mode, assume embeds are already 2D Poincaré coordinates.
+        # We do not apply PCA/t-SNE/UMAP because those are Euclidean reductions.
+        reduced_features = embeds
+
+        if torch.is_tensor(reduced_features):
+            reduced_features = reduced_features.detach().cpu().numpy()
+
+        reduced_features_torch = torch.tensor(reduced_features, dtype=torch.float32)
+        reduced_features_torch = project_to_poincare_disk_for_viz(reduced_features_torch)
+        reduced_features = reduced_features_torch.cpu().numpy()
+
+        reduction_label = 'Poincare'
+
+    else:
+        # Euclidean mode: use your original reduction logic.
+        if reduction_method == 'PCA':
+            pca = PCA(n_components=2, iterated_power=10)
+            reduced_features = pca.fit_transform(embeds)
+
+            variance_explained = pca.explained_variance_ratio_
+            variance_pc1 = variance_explained[0]
+            variance_pc2 = variance_explained[1]
+            print(variance_pc1, variance_pc2)
+
+        elif reduction_method == 'tsne':
+            tsne = manifold.TSNE(
+                n_components=2,
+                init="random",
+                random_state=0,
+                perplexity=perplexity,
+            )
+            reduced_features = tsne.fit_transform(embeds)
+
+        elif reduction_method == 'UMAP':
+            reduced_features = umap.UMAP(
+                n_components=2,
+                n_neighbors=perplexity,
+                min_dist=0.0,
+                metric='euclidean'
+            ).fit_transform(X=embeds)
+
+        elif reduction_method is None:
+            reduced_features = embeds
+            reduction_method = 'None'
+
+        else:
+            raise ValueError('Invalid reduction method')
+
+        if torch.is_tensor(reduced_features):
+            reduced_features = reduced_features.detach().cpu().numpy()
+
+        reduction_label = reduction_method
+
+    print(
+        reduced_features[:, 0].min(),
+        reduced_features[:, 0].max(),
+        reduced_features[:, 1].min(),
+        reduced_features[:, 1].max()
+    )
+
+    # ------------------------------------------------------------
+    # 2. Build grid depending on geometry
+    # ------------------------------------------------------------
+
+    if space == 'poincare':
+        x_grid, y_grid = np.meshgrid(
+            np.linspace(-0.999, 0.999, grid_res),
+            np.linspace(-0.999, 0.999, grid_res)
+        )
+
+        disk_mask = x_grid ** 2 + y_grid ** 2 < 0.999 ** 2
+
+        grid_points = np.column_stack([
+            x_grid.ravel(),
+            y_grid.ravel()
+        ])
+
+        valid_grid_points = grid_points[disk_mask.ravel()]
+
+    else:
+        x_min, x_max = reduced_features[:, 0].min(), reduced_features[:, 0].max()
+        y_min, y_max = reduced_features[:, 1].min(), reduced_features[:, 1].max()
+
+        x_pad = euclidean_grid_padding * (x_max - x_min)
+        y_pad = euclidean_grid_padding * (y_max - y_min)
+
+        if x_pad == 0:
+            x_pad = 1e-3
+        if y_pad == 0:
+            y_pad = 1e-3
+
+        x_grid, y_grid = np.meshgrid(
+            np.linspace(x_min - x_pad, x_max + x_pad, grid_res),
+            np.linspace(y_min - y_pad, y_max + y_pad, grid_res)
+        )
+
+        grid_points = np.vstack([
+            x_grid.ravel(),
+            y_grid.ravel()
+        ])
+
+        disk_mask = None
+        valid_grid_points = None
+
+    # ------------------------------------------------------------
+    # 3. KDE function depending on geometry
+    # ------------------------------------------------------------
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    bandwidth_cache = {}
+
+    def get_kde_values(label):
+        plot_idx = required_desc.index(label)
+        label_indices = np.where(y[:, plot_idx] == 1)[0]
+
+        label_points = reduced_features[label_indices]
+
+        if len(label_points) < 2:
+            return np.full(x_grid.shape, np.nan)
+
+        if space == 'euclidean':
+            kde_label = gaussian_kde(label_points.T)
+            kde_values_label = kde_label(grid_points)
+            kde_values_label = kde_values_label.reshape(x_grid.shape)
+            return kde_values_label
+
+        else:
+            label_points_torch = torch.tensor(
+                label_points,
+                dtype=torch.float32,
+                device=device
+            )
+
+            label_points_torch = project_to_poincare_disk_for_viz(label_points_torch)
+
+            if label not in bandwidth_cache:
+                base_bandwidth = estimate_hyperbolic_bandwidth_for_viz(
+                    label_points_torch,
+                    distance_func=poincare_distance,
+                    device=device
+                )
+
+                bandwidth_cache[label] = bandwidth_scale * base_bandwidth
+
+                if forced_bandwidth is not None:
+                    bandwidth_cache[label] = forced_bandwidth
+
+            bandwidth = bandwidth_cache[label]
+
+            kde_valid = hyperbolic_kde_for_viz(
+                valid_grid_points,
+                label_points_torch,
+                bandwidth=bandwidth,
+                distance_func=poincare_distance,
+                device=device
+            )
+
+            kde_values_label = np.full(x_grid.shape, np.nan)
+            kde_values_label.ravel()[disk_mask.ravel()] = kde_valid
+
+            return kde_values_label
+
+    # ------------------------------------------------------------
+    # 4. Probability-mass contour level depending on geometry
+    # ------------------------------------------------------------
+
+    def get_probability_contour_level(kde_values, x_grid, y_grid, target_mass=0.5):
+        dens = kde_values.ravel()
+
+        valid = np.isfinite(dens)
+        dens = dens[valid]
+
+        if len(dens) == 0:
+            return np.nan
+
+        dx = x_grid[0, 1] - x_grid[0, 0]
+        dy = y_grid[1, 0] - y_grid[0, 0]
+
+        if space == 'euclidean':
+            cell_area = dx * dy
+            cell_mass = np.full_like(dens, cell_area, dtype=np.float64)
+
+        else:
+            area_element = hyperbolic_area_element_for_viz(
+                x_grid,
+                y_grid
+            ).ravel()[valid]
+
+            cell_mass = area_element * dx * dy
+
+        order = np.argsort(dens)[::-1]
+
+        dens_sorted = dens[order]
+        mass_sorted = dens_sorted * cell_mass[order]
+
+        cum_mass = np.cumsum(mass_sorted)
+
+        if cum_mass[-1] <= 0:
+            return np.nan
+
+        cum_mass = cum_mass / cum_mass[-1]
+
+        idx = np.searchsorted(cum_mass, target_mass)
+
+        return dens_sorted[min(idx, len(dens_sorted) - 1)]
+
+    # ------------------------------------------------------------
+    # 5. Plot contours and embeddings
+    # ------------------------------------------------------------
+
+    def plot_contours(
+        type_dictionary,
+        bbox_to_anchor,
+        target_mass_main=target_mass_main,
+        target_mass_sub=target_mass_sub,
+        islands_alpha=islands_alpha
+    ):
+        main_label = list(type_dictionary.keys())[0]
+
+        kde_main = np.ma.masked_invalid(get_kde_values(main_label))
+
+        main_level = get_probability_contour_level(
+            kde_main.filled(np.nan),
+            x_grid,
+            y_grid,
+            target_mass=target_mass_main
+        )
+
+        if np.isfinite(main_level) and kde_main.max() > main_level:
+            plt.contourf(
+                x_grid,
+                y_grid,
+                kde_main,
+                levels=[main_level, kde_main.max()],
+                colors=[type_dictionary[main_label]],
+                alpha=islands_alpha
+            )
+
+        axes = plt.gca()
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
+
+        legend_elements = []
+
+        for label, color in type_dictionary['subs'].items():
+            kde_sub = np.ma.masked_invalid(get_kde_values(label))
+
+            sub_level = get_probability_contour_level(
+                kde_sub.filled(np.nan),
+                x_grid,
+                y_grid,
+                target_mass=target_mass_sub
+            )
+
+            if np.isfinite(sub_level) and kde_sub.max() > sub_level:
+                plt.contour(
+                    x_grid,
+                    y_grid,
+                    kde_sub,
+                    levels=[sub_level],
+                    colors=color,
+                    linewidths=2
+                )
+
+            legend_elements.append(Patch(facecolor=color, label=label))
+
+        legend = plt.legend(
+            handles=legend_elements,
+            title=main_label,
+            bbox_to_anchor=bbox_to_anchor,
+            prop={'size': 30}
+        )
+
+        legend.get_frame().set_facecolor(type_dictionary[main_label])
+        plt.gca().add_artist(legend)
+        
+        
+    def plot_embeddings():
+        if not show_embeddings:
+            return
+
+        points_to_plot = reduced_features
+
+        if space == 'poincare':
+            r2 = points_to_plot[:, 0] ** 2 + points_to_plot[:, 1] ** 2
+            points_to_plot = points_to_plot[r2 < 1.0]
+
+        plt.scatter(
+            points_to_plot[:, 0],
+            points_to_plot[:, 1],
+            s=embedding_dot_size,
+            c=embedding_dot_color,
+            alpha=embedding_dot_alpha,
+            linewidths=0,
+            zorder=embedding_dot_zorder,
+            rasterized=True
+        )
+
+    # ------------------------------------------------------------
+    # 6. Build final figure
+    # ------------------------------------------------------------
+
+    fig = plt.figure(figsize=(15, 15), dpi=700)
+
+    plot_contours(type_dictionary=type1, bbox_to_anchor=size1)
+    plot_contours(type_dictionary=type2, bbox_to_anchor=size2)
+    plot_contours(type_dictionary=type3, bbox_to_anchor=size3)
+    plot_embeddings()
+
+    ax = plt.gca()
+
+    if space == 'poincare':
+        circle = plt.Circle(
+            (0, 0),
+            1.0,
+            fill=False,
+            linewidth=2,
+            color="black"
+        )
+
+        ax.add_patch(circle)
+        ax.set_aspect("equal")
+        ax.set_xlim(-1.02, 1.02)
+        ax.set_ylim(-1.02, 1.02)
+
+        plt.xlabel('Poincaré disk x', fontsize=35)
+        plt.ylabel('Poincaré disk y', fontsize=35)
+
+    else:
+        ax.set_aspect("auto")
+
+        if reduction_method == 'PCA':
+            plt.xlabel('Principal Component 1', fontsize=35)
+            plt.ylabel('Principal Component 2', fontsize=35)
+        elif reduction_method == 'tsne':
+            plt.xlabel('t-SNE 1', fontsize=35)
+            plt.ylabel('t-SNE 2', fontsize=35)
+        elif reduction_method == 'UMAP':
+            plt.xlabel('UMAP 1', fontsize=35)
+            plt.ylabel('UMAP 2', fontsize=35)
+        else:
+            plt.xlabel('Dimension 1', fontsize=35)
+            plt.ylabel('Dimension 2', fontsize=35)
+
+    save_path = (
+        "figs/islands/realign_islands_"
+        + title
+        + "_"
+        + str(space)
+        + "_"
+        + str(reduction_label)
+        + "_"
+        + str(perplexity)
+        + "_"
+        + str(i)
+        + ".pdf"
+    )
+
+    #plt.savefig(save_path)
+    plt.show()
+    plt.close()

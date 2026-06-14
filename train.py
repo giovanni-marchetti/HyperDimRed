@@ -25,8 +25,8 @@ from distances import (
 )
 
 from sklearn.manifold import TSNE
-
 from sklearn.decomposition import PCA
+from scipy.linalg import qr
 
 
 ### If using Jupyter Notebook:###
@@ -66,25 +66,28 @@ from sklearn.decomposition import PCA
 #         raise ValueError('Please provide either subject_id or n_subject')
 
 
+#python train.py --base_dir /home/aniss/PhD/projects/hyperbolic/hyper_dim_red/HyperDimRed/data --dataset_name sagar --data_type labels
+#python train.py --base_dir /home/aniss/PhD/projects/hyperbolic/hyper_dim_red/HyperDimRed/data/
+
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser('Hyperbolic Smell')
     parser.add_argument('--data_type', type=str, default='labels' , choices={"representation","labels"}) #label or batch
-    parser.add_argument('--representation_name', type=str, default='pom', choices={"molformer","pom"})
+    parser.add_argument('--representation_name', type=str, default='pom', choices={"molformer","pom"}) #matters only if data_type is representation
     parser.add_argument('--batch_size', type=int, default=195) #195
-    parser.add_argument('--num_epochs', type=int, default=5001) #100
+    parser.add_argument('--num_epochs', type=int, default=10001) #100 #5001
     # parser.add_argument('--min_dist', type=float, default=1.)
     parser.add_argument('--latent_dim', type=int, default=2)
-    parser.add_argument('--lr', type=float, default=0.0001)
+    parser.add_argument('--lr', type=float, default=0.1) #0.1 for hyperbolic MDS, 0.5 for Euclidean MDS
     # parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--base_dir', type=str,
                         default='./data/')
-    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"gslf","ravia","keller","sagar","sagarfmri"})  # tree for synthetic, gslf for real
+    parser.add_argument('--dataset_name', type=str, default='gslf' , choices={"tree","gslf","ravia","keller","sagar","sagarfmri"})  # tree for synthetic, gslf for real
     parser.add_argument('--normalize', type=bool, default=True) #* # only for Hyperbolic embeddings
-    parser.add_argument('--optimizer_type', type=str, default='AdamOptim', choices=['standard', 'poincare', 'Adam', 'AdamOptim','sgd']) #*
+    parser.add_argument('--optimizer_type', type=str, default='PoincareRiemannianAdamOptim', choices=['standard', 'poincare', 'Adam', 'AdamOptim','sgd', 'PoincareRiemannianAdamOptim']) # standard is just a home-made gradient descent optimizer, poincare is a home made riemannian gradient descent on Poincare, Adam is the pytorch Euclidean Adam, AdamOptim is a home-made Adam Euclidean optimizer, SGD is a pythorch SGD Euclidean optimizer, PoincareRiemannianAdamOptim is a home-made Poincare Riemannian Adam optimizer
     parser.add_argument('--model_name', type=str, default='mds', choices=['isomap', 'mds', 'contrastive'])
     parser.add_argument('--latent_dist_fun', type=str, default='poincare', choices=['euclidean', 'poincare']) #*
     parser.add_argument('--distr', type=str, default='hypergaussian', choices=['gaussian', 'hypergaussian']) #*
@@ -101,6 +104,9 @@ if __name__ == "__main__":
     parser.add_argument('--filter_dragon', type=bool, default=False) #for chemical data
     # args = argparse.Namespace()
     args = parser.parse_args()
+
+    results_path = 'results_june2026'
+    figs_path = 'figs2_june2026'
 
     if torch.cuda.is_available():
         args.device = torch.device('cuda')
@@ -156,7 +162,7 @@ if __name__ == "__main__":
     elif dataset_name in ['gslf', 'keller' , 'sagar']: ### If multiple subjects, to average among them put grand_avg=True. If individual subjects then put grand_avg=False and below use select_subjects function
         input_embeddings = f'embeddings/{representation_name}/{dataset_name}_{representation_name}_embeddings_13_Apr17.csv'
         embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
-                                             grand_avg=True if (dataset_name == 'keller' or (dataset_name == 'saagar' and subject==None)) else False)
+                                             grand_avg=True if (dataset_name == 'keller' or (dataset_name == 'sagar' and subject==None)) else False)
         # embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
         #                                      grand_avg=True if dataset_name == 'keller' or dataset_name=='sagar' else False) #grand_avg averages among subjects so put false for analyzing each subject individually
         # embeddings, labels,subjects,CIDs = read_embeddings(base_dir, select_descriptors(dataset_name), input_embeddings,
@@ -229,6 +235,34 @@ if __name__ == "__main__":
     #keep the maximum in the third dimension of data
 
 
+
+##### ORTHOGONALIZATION #####
+
+    # # --- METHOD A: PCA Rotation (15D -> 15D) ---
+    # # Simple rotation. We keep all 15 components. Uncorrelated but variance preserved.
+    # pca_rot = PCA(n_components=labels.shape[1], whiten=False)
+    # labels_pca = pca_rot.fit_transform(labels)
+    # labels = torch.tensor(labels_pca)
+    # print('labels after PCA', labels) 
+
+    # # --- METHOD B: Whitening (PCA + Scaling) ---
+    # # Rotation + dividing by sqrt(variance). Uncorrelated and unit variance.
+    # pca_white = PCA(n_components=labels.shape[1], whiten=True)
+    # labels_white = pca_white.fit_transform(labels)
+    # labels = torch.tensor(labels_white)
+    # print('labels after whitening', labels) 
+
+    # # --- METHOD C: Gram-Schmidt (via QR Decomposition) ---
+    # # QR decomposition is the matrix equivalent of Gram-Schmidt. Uncorrelated and unit variance.
+    # Q, R = qr(labels, mode='economic')
+    # labels_gs = 5*Q  # The Q matrix is the orthogonalized version of X
+    # labels = torch.tensor(labels_gs)
+    # print('labels after Gram-Schmidt', labels) 
+
+
+##### END OF ORTHOGONALIZATION #####
+
+
     dataset = OdorMonoDataset(embeddings, labels, transform=None)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
@@ -268,10 +302,10 @@ if __name__ == "__main__":
 
     if model_name == 'isomap':
         model = Isomap(len(dataset), latent_dim,
-                       euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance)
+                       euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance, distr=distr)
     elif model_name == 'mds':
         model = MDS(len(dataset), latent_dim,
-                    euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance)
+                    euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance, distr=distr)
     elif model_name == 'contrastive':
         model = Contrastive(len(dataset), latent_dim,
                             euclidean_distance if latent_dist_fun == 'euclidean' else poincare_distance, distr=distr)
@@ -290,6 +324,8 @@ if __name__ == "__main__":
     elif optimizer_type=='AdamOptim':
         optimizer = AdamOptim(model, lr=lr)
         # optimizer = Adam(model.embeddings, lr= lr)
+    elif optimizer_type == 'PoincareRiemannianAdamOptim':
+        optimizer = PoincareRiemannianAdamOptim(model, lr=lr)
     else:
         raise ValueError('Optimizer not recognized')
 
@@ -446,7 +482,7 @@ if __name__ == "__main__":
             print(f'Epoch {i}, loss: {total_loss :.3f}')
             losses.append(total_loss)
 
-        if i % 10 == 0:  # 1000
+        if i % 100 == 0:  # 1000
             # save_embeddings(i, args, model.embeddings.detach().cpu().numpy(), losses=losses,
             #                 losses_neg=model.losses_neg if model_name == 'contrastive' else [],
             #                 losses_pos=model.losses_pos if model_name == 'contrastive' else [])
@@ -457,7 +493,8 @@ if __name__ == "__main__":
                                             ent_array, CIDs, labels, subjects=subjects,
                             color_by='color', shape_by='none',
                             save=True, args=args,
-                            hyperbolic_boundary = normalize)
+                            hyperbolic_boundary = normalize,
+                            saving_path=figs_path)
 
                 plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
                             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
@@ -469,7 +506,8 @@ if __name__ == "__main__":
                                             dataset.labels.detach(), CIDs, labels, subjects=subjects,
                             color_by='entropy', shape_by='none',
                             save=True, args=args,
-                            hyperbolic_boundary = normalize)
+                            hyperbolic_boundary = normalize,
+                             saving_path=figs_path)
 
                 # plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
                 #             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
@@ -484,7 +522,8 @@ if __name__ == "__main__":
                                             dataset.labels.detach(), CIDs, labels, subjects=subjects, #for gaussian, 3rd argument can be embeddings instead of dataset.labels.detach()
                             color_by='input_norm', shape_by='none',
                             save=True, args=args,
-                            hyperbolic_boundary = normalize)
+                            hyperbolic_boundary = normalize,
+                            saving_path=figs_path)
                 c = torch.norm(dataset.labels.detach(), dim=-1)
 
             elif dataset_name == 'gslf':
@@ -502,10 +541,19 @@ if __name__ == "__main__":
                                             dataset.labels.detach(), CIDs, labels, subjects=subjects,
                             color_by='input_norm', shape_by='none',
                             save=True, args=args,
-                            hyperbolic_boundary = normalize)
+                            hyperbolic_boundary = normalize,
+                            saving_path=figs_path)
                 plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
                             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
                 c = torch.norm(dataset.labels.detach(), dim=-1)
+
+                # size1 = (0.34, 0.28)
+                # size2 = (0.7, 1.02)
+                # size3 = (1, 0.35)
+                # pom_frame_probamass(i, model.embeddings.detach().cpu().numpy(), dataset.labels.detach().cpu().numpy(),
+                #                     gs_lf_tasks,"Embeddings",size1,size2,size3,
+                #                     reduction_method=None, perplexity=None,
+                #                     target_mass_main=0.3, target_mass_sub=0.2) 
 
 
                 # To visualize some classes
@@ -551,7 +599,7 @@ if __name__ == "__main__":
                 #             color_by='color', shape_by='none',
                 #             save=True, args=args,
                 #             hyperbolic_boundary = normalize)
-                c = torch.norm(dataset.labels.detach(), dim=-1)
+                # c = torch.norm(dataset.labels.detach(), dim=-1)
                 # plot_losses(i, args=args, save=True, losses=losses, losses_neg=model.losses_neg if model_name == 'contrastive' else None,
                 #             losses_pos=model.losses_pos if model_name == 'contrastive' else None)
 
@@ -566,8 +614,8 @@ if __name__ == "__main__":
                 corr = np.corrcoef(radius, c)[0, 1]  # Get the correlation coefficient
                 correlation_coefficients.append(corr)  # Store the correlation coefficient
                 print(correlation_coefficients)
-        if i % 50 == 0:
-            save_embeddings_npy(model.embeddings, args, i)
+        if i % 100 == 0:
+            save_embeddings_npy(model.embeddings, args, i, saving_path=results_path)
 
 
 
